@@ -16,6 +16,7 @@ require (
 	github.com/open-telemetry/opentelemetry-collector-contrib/extension/observer/ecsobserver v0.147.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/extension/observer/hostobserver v0.147.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/extension/observer/k8sobserver v0.147.0
+	github.com/open-telemetry/opentelemetry-collector-contrib/extension/opampextension v0.147.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/extension/pprofextension v0.147.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/extension/storage/filestorage v0.147.0
 	github.com/open-telemetry/opentelemetry-collector-contrib/processor/attributesprocessor v0.147.0
@@ -311,6 +312,7 @@ require (
 	github.com/maxatome/go-testdeep v1.14.0 // indirect
 	github.com/mdlayher/socket v0.5.1 // indirect
 	github.com/mdlayher/vsock v1.2.1 // indirect
+	github.com/michel-laterman/proxy-connect-dialer-go v0.1.0 // indirect
 	github.com/miekg/dns v1.1.69 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
@@ -328,7 +330,9 @@ require (
 	github.com/oklog/ulid/v2 v2.1.1 // indirect
 	github.com/onsi/ginkgo/v2 v2.27.5 // indirect
 	github.com/onsi/gomega v1.39.0 // indirect
+	github.com/open-telemetry/opamp-go v0.23.0 // indirect
 	github.com/open-telemetry/opentelemetry-collector-contrib/extension/observer v0.147.0 // indirect
+	github.com/open-telemetry/opentelemetry-collector-contrib/extension/opampcustommessages v0.147.0 // indirect
 	github.com/open-telemetry/opentelemetry-collector-contrib/internal/aws/ecsutil v0.147.0 // indirect
 	github.com/open-telemetry/opentelemetry-collector-contrib/internal/common v0.147.0 // indirect
 	github.com/open-telemetry/opentelemetry-collector-contrib/internal/coreinternal v0.147.0 // indirect
