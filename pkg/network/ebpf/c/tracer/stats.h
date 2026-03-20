@@ -21,8 +21,7 @@
 #include "protocols/tls/tls-certs.h"
 
 #ifdef COMPILE_PREBUILT
-static __always_inline __u64 offset_rtt();
-static __always_inline __u64 offset_rtt_var();
+#include "prebuilt/offsets.h"
 #endif
 
 static __always_inline tls_info_t* get_tls_enhanced_tags(conn_tuple_t* tuple) {

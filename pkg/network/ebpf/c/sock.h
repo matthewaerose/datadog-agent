@@ -10,6 +10,10 @@
 #include "netns.h"
 #include "pid_tgid.h"
 
+#ifdef COMPILE_PREBUILT
+#include "prebuilt/offsets.h"
+#endif
+
 #ifdef COMPILE_CORE
 
 #include "ip.h" // for AF_INET and AF_INET6

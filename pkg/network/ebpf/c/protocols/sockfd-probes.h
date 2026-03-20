@@ -16,6 +16,10 @@
 #include "pid_tgid.h"
 #include "protocols/tls/go-tls-maps.h"
 
+#ifdef COMPILE_PREBUILT
+#include "prebuilt/offsets.h"
+#endif
+
 SEC("kprobe/tcp_close")
 int BPF_KPROBE(kprobe__tcp_close, struct sock *sk) {
     if (sk == NULL) {
