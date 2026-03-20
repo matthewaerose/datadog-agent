@@ -843,6 +843,8 @@ func TestMetricsFollowSpec(t *testing.T) {
 
 	metricsSpec, err := gpuspec.LoadMetricsSpec()
 	require.NoError(t, err)
+	tagsSpec, err := gpuspec.LoadTagsSpec()
+	require.NoError(t, err)
 	archFile, err := gpuspec.LoadArchitecturesSpec()
 	require.NoError(t, err)
 
@@ -886,7 +888,7 @@ func TestMetricsFollowSpec(t *testing.T) {
 						t.Run(name, func(t *testing.T) {
 							metrics, found := emittedMetrics[name]
 							require.True(t, found, "spec metric is not emitted by check run: %s", name)
-							validateMetricTagsAgainstSpec(t, metricsSpec, name, m, metrics, knownTagValues)
+							validateMetricTagsAgainstSpec(t, tagsSpec, name, m, metrics, knownTagValues)
 						})
 					}
 				})
@@ -1096,20 +1098,32 @@ func getEmittedGPUMetricsWithTags(mockSender *mocksender.MockSender) map[string]
 	return metricsByName
 }
 
-func validateMetricTagsAgainstSpec(t *testing.T, spec *gpuspec.MetricsSpec, metricName string, metricSpec gpuspec.MetricSpec, emittedMetrics []metric, knownTagValues map[string]string) {
-	require.NotEmpty(t, emittedMetrics, "metric %s has no emitted samples to validate tags", metricName)
+func requiredTagsFromSpec(t *testing.T, tagsSpec *gpuspec.TagsSpec, metricName string, metricSpec gpuspec.MetricSpec) map[string]struct{} {
+	t.Helper()
 
 	requiredTags := make(map[string]struct{})
 	for _, tagsetName := range metricSpec.Tagsets {
-		tagsetSpec, ok := spec.Tagsets[tagsetName]
+		tagsetSpec, ok := tagsSpec.Tagsets[tagsetName]
 		require.True(t, ok, "metric %s references unknown tagset %s", metricName, tagsetName)
 		for _, tag := range tagsetSpec.Tags {
+			_, ok := tagsSpec.Tags[tag]
+			require.True(t, ok, "tagset %s references unknown tag %s", tagsetName, tag)
 			requiredTags[tag] = struct{}{}
 		}
 	}
 	for _, tag := range metricSpec.CustomTags {
+		_, ok := tagsSpec.Tags[tag]
+		require.True(t, ok, "metric %s references unknown custom tag %s", metricName, tag)
 		requiredTags[tag] = struct{}{}
 	}
+
+	return requiredTags
+}
+
+func validateMetricTagsAgainstSpec(t *testing.T, tagsSpec *gpuspec.TagsSpec, metricName string, metricSpec gpuspec.MetricSpec, emittedMetrics []metric, knownTagValues map[string]string) {
+	require.NotEmpty(t, emittedMetrics, "metric %s has no emitted samples to validate tags", metricName)
+
+	requiredTags := requiredTagsFromSpec(t, tagsSpec, metricName, metricSpec)
 
 	for _, emittedMetric := range emittedMetrics {
 		tagsByKey := tagsToKeyValues(emittedMetric.tags)
