@@ -34,16 +34,26 @@ class Metric(BaseModel):
     deprecated: bool = False
 
 
+class TagSpec(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    regex: str | None = None
+
+
 class Tagset(BaseModel):
     model_config = ConfigDict(extra="forbid")
     tags: list[str]
 
 
-class Spec(BaseModel):
+class MetricsSpec(BaseModel):
     model_config = ConfigDict(extra="forbid")
     metric_prefix: str
-    tagsets: dict[str, Tagset]
     metrics: dict[str, Metric]
+
+
+class TagsSpec(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    tags: dict[str, TagSpec]
+    tagsets: dict[str, Tagset]
 
 
 class Architecture(BaseModel):

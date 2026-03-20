@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import itertools
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 from datadog_api_client.v2.api.metrics_api import MetricsApi as MetricsApiV2
 from datadog_api_client.v2.model.metrics_scalar_query import MetricsScalarQuery
@@ -206,3 +207,46 @@ def list_observed_gpu_metrics_for_gpu_config(
         if not page_cursor:
             break
     return metrics
+
+
+def fetch_metric_all_tags(
+    api: MetricsApiV2,
+    metric_name: str,
+    allowed_tags: set[str],
+    window_seconds: int = 14400,
+    metric_scope_filter: str = "",
+) -> dict[str, list[str]]:
+    from datadog_api_client.v2.model.metric_all_tags import MetricAllTags
+
+    all_tags: dict[str, list[str]] = {}
+    grouped_tags = itertools.groupby(sorted(allowed_tags), key=lambda x: x.split("_", 1)[0])
+
+    for match_filter, grouped_allowed_tags in grouped_tags:
+        try:
+            response = api.list_tags_by_metric_name(
+                metric_name=metric_name,
+                filter_match=match_filter,
+                filter_include_tag_values=True,
+                page_limit=1000,
+                window_seconds=window_seconds,
+                filter_tags=metric_scope_filter,
+            )
+        except Exception as e:
+            raise ValueError(f"fetch all-tags for {metric_name} match {match_filter}: {e}") from e
+
+        data = cast(MetricAllTags, response.data)
+        if not data or not data.attributes:
+            print(f"no data for {metric_name} match {match_filter}")
+            continue
+
+        indexed_tags = list[str](data.attributes.tags or [])
+        for raw_tag in indexed_tags:
+            if not isinstance(raw_tag, str):
+                continue
+            key, sep, value = raw_tag.partition(":")
+            if not sep or not key or not value:
+                continue
+            if key not in grouped_allowed_tags:
+                continue
+            all_tags.setdefault(key, []).append(value)
+    return all_tags

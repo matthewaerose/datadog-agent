@@ -16,6 +16,7 @@ import (
 const (
 	metricsSpecFile       = "gpu_metrics.yaml"
 	architecturesSpecFile = "architectures.yaml"
+	tagsSpecFile          = "tags.yaml"
 )
 
 //go:embed gpu_metrics.yaml architectures.yaml
@@ -33,8 +34,18 @@ const (
 // MetricsSpec is the YAML metric specification.
 type MetricsSpec struct {
 	MetricPrefix string                `yaml:"metric_prefix"`
-	Tagsets      map[string]TagsetSpec `yaml:"tagsets"`
 	Metrics      map[string]MetricSpec `yaml:"metrics"`
+}
+
+// TagsSpec is the YAML tags specification.
+type TagsSpec struct {
+	Tags    map[string]TagSpec    `yaml:"tags"`
+	Tagsets map[string]TagsetSpec `yaml:"tagsets"`
+}
+
+// TagSpec defines validation metadata for a reusable tag.
+type TagSpec struct {
+	Regex string `yaml:"regex,omitempty"`
 }
 
 // TagsetSpec defines a reusable tagset.
@@ -127,6 +138,26 @@ func LoadMetricsSpec() (*MetricsSpec, error) {
 	var parsed MetricsSpec
 	if err := yaml.Unmarshal(data, &parsed); err != nil {
 		return nil, fmt.Errorf("unmarshal metrics spec %q: %w", metricsSpecFile, err)
+	}
+
+	return &parsed, nil
+}
+
+// LoadTagsSpec loads the canonical GPU tags specification file.
+func LoadTagsSpec() (*TagsSpec, error) {
+	path, err := getSpecPath(tagsSpecFile)
+	if err != nil {
+		return nil, fmt.Errorf("resolve tags spec path: %w", err)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read tags spec %q: %w", path, err)
+	}
+
+	var parsed TagsSpec
+	if err := yaml.Unmarshal(data, &parsed); err != nil {
+		return nil, fmt.Errorf("unmarshal tags spec %q: %w", path, err)
 	}
 
 	return &parsed, nil
