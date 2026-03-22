@@ -14,7 +14,7 @@
 package opamp
 
 import (
-	"fmt"
+	"errors"
 	"time"
 
 	opampextension "github.com/open-telemetry/opentelemetry-collector-contrib/extension/opampextension"
@@ -124,9 +124,9 @@ func (c *Config) Validate() error {
 	}
 	switch {
 	case c.Server.WS == nil && c.Server.HTTP == nil:
-		return fmt.Errorf("opamp server must have at least ws or http set")
+		return errors.New("opamp server must have at least ws or http set")
 	case c.Server.WS != nil && c.Server.HTTP != nil:
-		return fmt.Errorf("opamp server must have only ws or http set")
+		return errors.New("opamp server must have only ws or http set")
 	}
 	return nil
 }

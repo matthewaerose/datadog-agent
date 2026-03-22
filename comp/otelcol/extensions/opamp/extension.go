@@ -10,6 +10,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"net/http"
 	"sync"
@@ -77,7 +78,7 @@ func newExtension(set extension.Settings, cfg *Config, remoteCfg *RemoteConfigPr
 // Start implements extension.Extension.
 func (e *ddotOpampExtension) Start(ctx context.Context, host component.Host) error {
 	if e.cfg.Server == nil {
-		return fmt.Errorf("opamp: server configuration is required")
+		return errors.New("opamp: server configuration is required")
 	}
 
 	tlsCfg, err := e.cfg.Server.GetTLSConfig(ctx)
