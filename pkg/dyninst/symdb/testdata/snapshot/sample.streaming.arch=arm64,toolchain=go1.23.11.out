@@ -18,9 +18,54 @@ Package: main
 		Var: esotericStack: main.esotericStack (declared at line 53, available: [51-69])
 	Function: executeEsoteric.func1 (main.executeEsoteric.func1) in github.com/DataDog/datadog-agent/pkg/dyninst/testprogs/progs/sample/esoteric.go [58:58] injectible: [58-58]
 		Var: &capture: *int (declared at line 58, available: )
-	Function: executeGenericFuncs (main.executeGenericFuncs) in github.com/DataDog/datadog-agent/pkg/dyninst/testprogs/progs/sample/generics.go [19:25] injectible: [19-19], [21-21], [24-25]
-		Var: y: main.typeWithGenerics[int] (declared at line 23, available: )
-		Var: x: main.typeWithGenerics[string] (declared at line 20, available: )
+	Function: executeGenericFuncs (main.executeGenericFuncs) in github.com/DataDog/datadog-agent/pkg/dyninst/testprogs/progs/sample/generics.go [208:345] injectible: [208-208], [211-211], [213-213], [216-217], [221-221], [226-229], [233-234], [237-238], [241-244], [248-251], [257-257], [262-263], [268-273], [277-277], [281-281], [284-285], [288-289], [294-296], [298-300], [304-304], [306-306], [309-310], [318-320], [322-324], [327-328], [331-332], [338-339], [342-345]
+		Var: unwrapped1: int (declared at line 319, available: [208-345])
+		Var: intBox: github.com/DataDog/datadog-agent/pkg/dyninst/testprogs/progs/sample/lib.Box[int] (declared at line 276, available: )
+		Var: reduced1: int (declared at line 338, available: [208-345])
+		Var: pair1: github.com/DataDog/datadog-agent/pkg/dyninst/testprogs/progs/sample/lib.Pair[int,string] (declared at line 303, available: )
+		Var: pair2: github.com/DataDog/datadog-agent/pkg/dyninst/testprogs/progs/sample/lib.Pair[string,bool] (declared at line 305, available: )
+		Var: nestedInt: int (declared at line 285, available: [208-345])
+		Var: gotInt: int (declared at line 296, available: [208-345])
+		Var: summed: int (declared at line 309, available: [208-345])
+		Var: y: main.typeWithGenerics[int] (declared at line 212, available: )
+		Var: filtered: []int (declared at line 281, available: [208-345])
+		Var: nested: string (declared at line 284, available: [208-345])
+		Var: gotStr: string (declared at line 300, available: [208-345])
+		Var: joined: string (declared at line 310, available: [208-345])
+		Var: unwrapped2: string (declared at line 323, available: [208-345])
+		Var: reduced2: string (declared at line 339, available: [208-345])
+		Var: bs: main.bigStruct (declared at line 226, available: [208-345])
+		Var: s: string (declared at line 228, available: [208-345])
+		Var: p: main.Pair[string,int] (declared at line 241, available: [208-345])
+		Var: lgs: main.largeGenericType[string] (declared at line 250, available: [208-345])
+		Var: ts: main.tinyStruct (declared at line 270, available: [208-345])
+		Var: strBox2: github.com/DataDog/datadog-agent/pkg/dyninst/testprogs/progs/sample/lib.Box[string] (declared at line 298, available: [208-345])
+		Var: w1: github.com/DataDog/datadog-agent/pkg/dyninst/testprogs/progs/sample/lib2.Wrapper[int] (declared at line 318, available: [208-345])
+		Var: w2: github.com/DataDog/datadog-agent/pkg/dyninst/testprogs/progs/sample/lib2.Wrapper[string] (declared at line 322, available: [208-345])
+		Var: ii: int (declared at line 272, available: )
+		Var: intBox2: github.com/DataDog/datadog-agent/pkg/dyninst/testprogs/progs/sample/lib.Box[int] (declared at line 294, available: )
+		Var: lg: main.largeGenericType[int] (declared at line 248, available: )
+		Var: q: main.Pair[int,bool] (declared at line 243, available: )
+		Var: ss: main.smallStruct (declared at line 268, available: )
+	Function: executeGenericFuncs.func1 (main.executeGenericFuncs.func1) in github.com/DataDog/datadog-agent/pkg/dyninst/testprogs/progs/sample/generics.go [281:281] injectible: [281-281]
+		Arg: x: int (declared at line 281, available: [281-281])
+		Arg: ~r0: bool (declared at line 281, available: )
+	Function: executeGenericFuncs.func2 (main.executeGenericFuncs.func2) in github.com/DataDog/datadog-agent/pkg/dyninst/testprogs/progs/sample/generics.go [309:309] injectible: [309-309]
+		Arg: acc: int (declared at line 309, available: [309-309])
+		Arg: x: int (declared at line 309, available: [309-309])
+		Arg: ~r0: int (declared at line 309, available: )
+	Function: executeGenericFuncs.func3 (main.executeGenericFuncs.func3) in github.com/DataDog/datadog-agent/pkg/dyninst/testprogs/progs/sample/generics.go [310:310] injectible: [310-310]
+		Arg: acc: string (declared at line 310, available: [310-310])
+		Arg: x: string (declared at line 310, available: [310-310])
+		Arg: ~r0: string (declared at line 310, available: )
+	Function: executeGenericFuncs.func4 (main.executeGenericFuncs.func4) in github.com/DataDog/datadog-agent/pkg/dyninst/testprogs/progs/sample/generics.go [338:338] injectible: [338-338]
+		Arg: acc: int (declared at line 338, available: [338-338])
+		Arg: x: int (declared at line 338, available: [338-338])
+		Arg: ~r0: int (declared at line 338, available: )
+	Function: executeGenericFuncs.func5 (main.executeGenericFuncs.func5) in github.com/DataDog/datadog-agent/pkg/dyninst/testprogs/progs/sample/generics.go [339:339] injectible: [339-339]
+		Arg: acc: string (declared at line 339, available: [339-339])
+		Arg: x: string (declared at line 339, available: [339-339])
+		Arg: ~r0: string (declared at line 339, available: )
 	Function: executeInlined (main.executeInlined) in github.com/DataDog/datadog-agent/pkg/dyninst/testprogs/progs/sample/inlined.go [97:106] injectible: [97-98], [100-106]
 		Var: x: int (declared at line 99, available: )
 		Var: y: int (declared at line 100, available: [97-106])
@@ -183,10 +228,10 @@ Package: main
 	Function: init.2 (main.init.2) in github.com/DataDog/datadog-agent/pkg/dyninst/testprogs/progs/sample/complex.go [197:197] injectible: [197-197]
 	Function: iterExample.rangeOverIterator-range1 (main.iterExample.rangeOverIterator-range1) in github.com/DataDog/datadog-agent/pkg/dyninst/testprogs/progs/sample/ranges.go [16:18] injectible: [16-18]
 		Arg: value: int (declared at line 16, available: [16-17])
-	Function: main (main.main) in github.com/DataDog/datadog-agent/pkg/dyninst/testprogs/progs/sample/main.go [19:52] injectible: [19-20], [23-24], [26-38], [40-40], [42-43], [46-52]
-		Var: scanner: *bufio.Scanner (declared at line 23, available: )
-		Var: it: main.iterExample (declared at line 41, available: [19-52])
-		Var: t: github.com/DataDog/datadog-agent/pkg/dyninst/testprogs/progs/sample/lib.v2.V2Type (declared at line 39, available: [19-52])
+	Function: main (main.main) in github.com/DataDog/datadog-agent/pkg/dyninst/testprogs/progs/sample/main.go [20:54] injectible: [20-21], [24-25], [27-39], [41-41], [43-45], [48-54]
+		Var: scanner: *bufio.Scanner (declared at line 24, available: )
+		Var: it: main.iterExample (declared at line 42, available: [20-54])
+		Var: t: github.com/DataDog/datadog-agent/pkg/dyninst/testprogs/progs/sample/lib.v2.V2Type (declared at line 40, available: [20-54])
 	Function: main.WithService.func1 (main.main.WithService.func1) in github.com/DataDog/dd-trace-go/v2@v2.2.3-rc.1/ddtrace/tracer/option.go [986:989] injectible: [986-989]
 		Arg: c: *github.com/DataDog/dd-trace-go/v2/ddtrace/tracer.config (declared at line 986, available: [986-988])
 		Var: name: string (declared at line 987, available: [987-989])
@@ -973,6 +1018,9 @@ Package: main
 		Field: i: int
 		Function: DoSomething (main.secondBehavior.DoSomething) in github.com/DataDog/datadog-agent/pkg/dyninst/testprogs/progs/sample/interfaces.go [32:33] injectible: [32-33]
 			Arg: b: main.secondBehavior (declared at line 0, available: [32-33])
+	Type: main.smallStruct
+		Field: X: int
+		Field: Y: int
 	Type: main.somethingImpl
 		Function: Do (main.(*somethingImpl).Do) in github.com/DataDog/datadog-agent/pkg/dyninst/testprogs/progs/sample/esoteric.go [21:21] injectible: [21-21]
 			Arg: s: *main.somethingImpl (declared at line 21, available: [21-21])
@@ -1049,6 +1097,8 @@ Package: main
 	Type: main.tierA
 		Field: a: int
 		Field: b: main.tierB
+	Type: main.tinyStruct
+		Field: Name: string
 	Type: main.triggerVerifierErrorForTesting
 	Type: main.typeAlias
 	Type: main.wideStruct
@@ -1071,3 +1121,18 @@ Package: github.com/DataDog/datadog-agent/pkg/dyninst/testprogs/progs/sample/lib
 	Type: github.com/DataDog/datadog-agent/pkg/dyninst/testprogs/progs/sample/lib.v2.V2Type
 		Function: MyMethod (github.com/DataDog/datadog-agent/pkg/dyninst/testprogs/progs/sample/lib%2ev2.(*V2Type).MyMethod) in github.com/DataDog/datadog-agent/pkg/dyninst/testprogs/progs/sample/lib.v2/lib.go [22:24] injectible: [22-24]
 			Arg: v: *github.com/DataDog/datadog-agent/pkg/dyninst/testprogs/progs/sample/lib%2ev2.V2Type (declared at line 22, available: [22-23])
+Package: github.com/DataDog/datadog-agent/pkg/dyninst/testprogs/progs/sample/lib2
+	Function: UseGenericsWithFloat64 (github.com/DataDog/datadog-agent/pkg/dyninst/testprogs/progs/sample/lib2.UseGenericsWithFloat64) in github.com/DataDog/datadog-agent/pkg/dyninst/testprogs/progs/sample/lib2/lib2.go [82:106] injectible: [82-82], [85-87], [89-90], [92-93], [95-95], [99-99], [103-103], [106-106]
+		Var: w: github.com/DataDog/datadog-agent/pkg/dyninst/testprogs/progs/sample/lib2.Wrapper[float64] (declared at line 89, available: )
+		Var: box: github.com/DataDog/datadog-agent/pkg/dyninst/testprogs/progs/sample/lib.Box[float64] (declared at line 85, available: )
+	Function: UseGenericsWithFloat64.func1 (github.com/DataDog/datadog-agent/pkg/dyninst/testprogs/progs/sample/lib2.UseGenericsWithFloat64.func1) in github.com/DataDog/datadog-agent/pkg/dyninst/testprogs/progs/sample/lib2/lib2.go [96:96] injectible: [96-96]
+		Arg: acc: float64 (declared at line 95, available: [96-96])
+		Arg: x: float64 (declared at line 95, available: [96-96])
+		Arg: ~r0: float64 (declared at line 95, available: )
+	Function: UseGenericsWithFloat64.func2 (github.com/DataDog/datadog-agent/pkg/dyninst/testprogs/progs/sample/lib2.UseGenericsWithFloat64.func2) in github.com/DataDog/datadog-agent/pkg/dyninst/testprogs/progs/sample/lib2/lib2.go [100:100] injectible: [100-100]
+		Arg: x: float64 (declared at line 99, available: [100-100])
+		Arg: ~r0: bool (declared at line 99, available: )
+	Function: UseGenericsWithFloat64.func3 (github.com/DataDog/datadog-agent/pkg/dyninst/testprogs/progs/sample/lib2.UseGenericsWithFloat64.func3) in github.com/DataDog/datadog-agent/pkg/dyninst/testprogs/progs/sample/lib2/lib2.go [103:104] injectible: [103-104]
+		Arg: acc: string (declared at line 103, available: [103-104])
+		Arg: x: float64 (declared at line 103, available: [103-104])
+		Arg: ~r0: string (declared at line 103, available: )
