@@ -85,7 +85,7 @@ int BPF_PROG(udp_sendpage_exit, struct sock *sk, struct page *page, int offset, 
 
     sk_stats->sent_packets += 1;
     sk_stats->sent_bytes += sent;
-    sk_stats->timestamp_ms = to_time_ms_t(bpf_ktime_get_ns());
+    sk_stats->timestamp_ms = convert_ns_to_ms(bpf_ktime_get_ns());
     return 0;
 }
 
@@ -99,7 +99,7 @@ int BPF_PROG(udpv6_sendmsg_exit, struct sock *sk, struct msghdr *msg, size_t len
 
     sk_stats->sent_packets += 1;
     sk_stats->sent_bytes += sent;
-    sk_stats->timestamp_ms = to_time_ms_t(bpf_ktime_get_ns());
+    sk_stats->timestamp_ms = convert_ns_to_ms(bpf_ktime_get_ns());
     return 0;
 }
 
@@ -113,7 +113,7 @@ int BPF_PROG(udp_sendmsg_exit, struct sock *sk, struct msghdr *msg, size_t len, 
 
     sk_stats->sent_packets += 1;
     sk_stats->sent_bytes += sent;
-    sk_stats->timestamp_ms = to_time_ms_t(bpf_ktime_get_ns());
+    sk_stats->timestamp_ms = convert_ns_to_ms(bpf_ktime_get_ns());
     return 0;
 }
 

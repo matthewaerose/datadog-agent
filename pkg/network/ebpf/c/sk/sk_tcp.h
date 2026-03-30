@@ -56,6 +56,7 @@ static __always_inline int create_tcp_conn(conn_t *conn, struct sock *sk, sk_tcp
     conn->conn_stats.recv_bytes = tp->bytes_received;
     conn->conn_stats.sent_packets = tp->segs_out;
     conn->conn_stats.recv_packets = tp->segs_in;
+    // tcp_mstamp is already microseconds
     conn->conn_stats.timestamp_ms = to_time_ms_t(tp->tcp_mstamp);
     conn->conn_stats.cookie = (__u32)(bpf_get_socket_cookie(sk) & 0xFFFFFFFF);
     // TODO conn->conn_stats.protocol_stack
