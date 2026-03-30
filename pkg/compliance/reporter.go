@@ -66,6 +66,7 @@ func NewLogReporter(hostname string, sourceName, sourceType string, endpoints *c
 	tags := []string{
 		common.QueryAccountIDTag(),
 		"host:" + hostname,
+		"origin:compliance-agent",
 	}
 
 	// merge tags from config
