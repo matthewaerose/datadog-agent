@@ -99,6 +99,7 @@ static __always_inline int create_udp_conn(conn_t *conn, struct sock *sk, sk_udp
         conn->conn_stats.sent_packets = sk_stats->sent_packets;
         conn->conn_stats.recv_packets = sk_stats->recv_packets;
         conn->conn_stats.timestamp_ms = sk_stats->timestamp_ms;
+        conn->conn_stats.flags = sk_stats->flags;
     } else {
         // TODO initialize with information we are sure of
     }
