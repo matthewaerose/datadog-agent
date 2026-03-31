@@ -50,4 +50,5 @@ if [[ $# -gt 0 && ${#extra_args[@]} -gt 0 ]]; then
   set -- "${args[@]}"
 fi
 
-exec "$BAZEL_REAL" "$@"
+"$BAZEL_REAL" "$@"
+find "$XDG_CACHE_HOME" -maxdepth 4

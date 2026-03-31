@@ -60,7 +60,9 @@ if not exist "!more_than_260_chars!" (
 set "args=%*"
 if defined args if defined extra_args call :insert_extra_args
 "%BAZEL_REAL%" !bazel_home_startup_option! !args!
-exit /b !errorlevel!
+set "bazel_exit=!errorlevel!"
+if !bazel_exit! equ 0 if defined XDG_CACHE_HOME powershell -NoProfile -Command "& { $r = '!XDG_CACHE_HOME!'; Write-Host $r; Get-ChildItem $r -Recurse -Depth 4 -Force | Select-Object -ExpandProperty FullName }"
+exit /b !bazel_exit!
 
 :: "--startup cmd ..." -> "--startup cmd --config=ci ..."
 :insert_extra_args
