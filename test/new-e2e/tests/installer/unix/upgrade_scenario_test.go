@@ -288,6 +288,9 @@ func (s *upgradeScenarioSuite) TestUpgradeWithProxy() {
 	if s.Env().RemoteHost.OSFlavor == e2eos.Fedora || s.Env().RemoteHost.OSFlavor == e2eos.RedHat {
 		s.T().Skip("Fedora & RedHat can't start the Squid proxy")
 	}
+	if _, err := s.Env().RemoteHost.Execute("command -v docker"); err != nil {
+		s.T().Skip("Docker not pre-installed on this AMI; use a docker-baked OS variant for this test")
+	}
 
 	s.RunInstallScript("DD_REMOTE_UPDATES=true") // No proxy during install, to avoid setting up the APT proxy
 	defer s.Purge()
