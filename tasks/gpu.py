@@ -152,17 +152,17 @@ def generate_metric_table(_, output: str = DEFAULT_METRIC_TABLE_OUTPUT):
     architecture_order = [name.lower() for name in specs.architectures.architectures]
     last_architecture = architecture_order[-1] if architecture_order else None
     fieldnames = [
-        "metric name",
-        "min/max supported architecture",
-        "tagset",
+        "Metric name",
+        "Min/max supported architecture",
+        "Tagset",
         "Extra tags",
         "MIG support",
         "vGPU support",
-        "aggregation type",
-        "time aggregation",
-        "group aggregation",
-        "granularity aggregation",
-        "granularity tags",
+        "Aggregation type",
+        "Time aggregation",
+        "Group aggregation",
+        "Granularity aggregation",
+        "Granularity tags",
     ]
     rows_written = 0
 
@@ -185,32 +185,30 @@ def generate_metric_table(_, output: str = DEFAULT_METRIC_TABLE_OUTPUT):
                 else:
                     min_max_supported_architecture = f"{min_architecture}-{max_architecture}"
 
-            aggregation_type = metric.aggregation.type if metric.aggregation else ""
-            aggregation_details = specs.aggregations.aggregations.get(aggregation_type) if aggregation_type else None
-            time_aggregation = aggregation_details.time_aggregator if aggregation_details else ""
-            group_aggregation = aggregation_details.group_aggregator if aggregation_details else ""
-            granularity_aggregation = aggregation_details.granularity_aggregator if aggregation_details else ""
+            row = {
+                "Metric name": f"{specs.metrics.metric_prefix}.{metric_name}",
+                "Min/max supported architecture": min_max_supported_architecture,
+                "Tagset": "|".join(metric.tagsets),
+                "Extra tags": "|".join(metric.custom_tags),
+                "MIG support": str(metric.support.device_modes.get("mig", False)).lower(),
+                "vGPU support": str(metric.support.device_modes.get("vgpu", False)).lower(),
+            }
+
+            if metric.aggregation:
+                row["Aggregation type"] = metric.aggregation.type
+
+                if metric.aggregation.type in specs.aggregations.aggregations:
+                    aggregation_details = specs.aggregations.aggregations[metric.aggregation.type]
+                    row["Time aggregation"] = aggregation_details.time_aggregator
+                    row["Group aggregation"] = aggregation_details.group_aggregator
+                    row["Granularity aggregation"] = aggregation_details.granularity_aggregator
 
             granularity_tags = {"host", "gpu_uuid"}
             granularity_tags.update(metric.custom_tags)
             if "process" in metric.tagsets:
                 granularity_tags.add("pid")
 
-            writer.writerow(
-                {
-                    "metric name": f"{specs.metrics.metric_prefix}.{metric_name}",
-                    "min/max supported architecture": min_max_supported_architecture,
-                    "tagset": "|".join(metric.tagsets),
-                    "Extra tags": "|".join(metric.custom_tags),
-                    "MIG support": str(metric.support.device_modes.get("mig", False)).lower(),
-                    "vGPU support": str(metric.support.device_modes.get("vgpu", False)).lower(),
-                    "aggregation type": aggregation_type,
-                    "time aggregation": time_aggregation,
-                    "group aggregation": group_aggregation,
-                    "granularity aggregation": granularity_aggregation,
-                    "granularity tags": f"{{{','.join(sorted(granularity_tags))}}}",
-                }
-            )
+            writer.writerow(row)
             rows_written += 1
 
     print(f"Wrote {rows_written} rows to {output_path}")
