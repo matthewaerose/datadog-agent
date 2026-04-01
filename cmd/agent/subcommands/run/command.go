@@ -156,7 +156,7 @@ import (
 	processagentStatusImpl "github.com/DataDog/datadog-agent/comp/process/status/statusimpl"
 	rdnsquerierfx "github.com/DataDog/datadog-agent/comp/rdnsquerier/fx"
 	remoteconfig "github.com/DataDog/datadog-agent/comp/remote-config"
-	"github.com/DataDog/datadog-agent/comp/remote-config/rcclient"
+	rcclient "github.com/DataDog/datadog-agent/comp/remote-config/rcclient/def"
 	"github.com/DataDog/datadog-agent/comp/remote-config/rcservice/rcserviceimpl"
 	"github.com/DataDog/datadog-agent/comp/remote-config/rcservicemrf/rcservicemrfimpl"
 	rctelemetryreporterfx "github.com/DataDog/datadog-agent/comp/remote-config/rctelemetryreporter/fx"
