@@ -9,13 +9,17 @@ package configcheck
 
 import (
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	configmock "github.com/DataDog/datadog-agent/pkg/config/mock"
+	"github.com/DataDog/datadog-agent/pkg/config/model"
+	"github.com/DataDog/datadog-agent/pkg/config/nodetreemodel"
 	pkgconfigsetup "github.com/DataDog/datadog-agent/pkg/config/setup"
+	"github.com/DataDog/datadog-agent/pkg/config/viperconfig"
 )
 
 func TestIsEnabled(t *testing.T) {
@@ -624,4 +628,79 @@ otlp_config:
 	}
 
 	assert.Equal(t, expectMap, configSection)
+}
+
+// TestViperNTMHasSectionDivergenceOnNullLeaf demonstrates that Viper and NTM
+// (nodetreemodel) config backends disagree on HasSection for a YAML null leaf.
+//
+// Given the same YAML:
+//
+//	otlp_config:
+//	  logs:
+//	    enabled:          # <-- YAML null
+//
+// Viper treats the nil-valued "enabled" map entry as a section marker and
+// returns HasSection=true, while NTM correctly identifies it as a leaf and
+// returns HasSection=false.
+//
+// Both backends agree that IsConfigured is false (a nil file value is not
+// a real user configuration).
+//
+// This divergence caused a CI failure: the readConfigSection filter
+// (HasSection || IsConfigured) included the entry on Viper but excluded it
+// on NTM, producing different outputs for the same input YAML.
+func TestViperNTMHasSectionDivergenceOnNullLeaf(t *testing.T) {
+	const yamlData = `
+otlp_config:
+  logs:
+    enabled:
+`
+	const key = "otlp_config.logs.enabled"
+
+	newBackendConfig := func(t *testing.T, constructor func(string, string, *strings.Replacer) model.BuildableConfig) model.BuildableConfig {
+		cfg := constructor("datadog", "DD", strings.NewReplacer(".", "_"))
+		pkgconfigsetup.OTLP(cfg)
+		cfg.BuildSchema()
+
+		tmpFile, err := os.CreateTemp("", "test-null-leaf-*.yaml")
+		require.NoError(t, err)
+		t.Cleanup(func() { os.Remove(tmpFile.Name()) })
+
+		_, err = tmpFile.WriteString(yamlData)
+		require.NoError(t, err)
+		tmpFile.Close()
+
+		cfg.SetConfigFile(tmpFile.Name())
+		require.NoError(t, cfg.ReadInConfig())
+		return cfg
+	}
+
+	viperCfg := newBackendConfig(t, viperconfig.NewViperConfig)
+	ntmCfg := newBackendConfig(t, nodetreemodel.NewNodeTreeConfig)
+
+	// Both backends agree: IsConfigured is false for a null YAML leaf.
+	// Neither considers a nil value from the config file as user-configured.
+	assert.False(t, viperCfg.IsConfigured(key), "Viper: IsConfigured must be false for null leaf")
+	assert.False(t, ntmCfg.IsConfigured(key), "NTM:   IsConfigured must be false for null leaf")
+
+	// HasSection DIVERGES: this is the root cause of the CI failure.
+	// Viper incorrectly treats a nil-valued leaf as a section.
+	assert.True(t, viperCfg.HasSection(key), "Viper: HasSection returns true for null leaf (BUG: treats nil map entry as section)")
+	assert.False(t, ntmCfg.HasSection(key), "NTM:   HasSection returns false for null leaf (correct: it's a leaf, not a section)")
+
+	// Consequence: readConfigSection produces different output per backend.
+	viperResult := readConfigSection(viperCfg, "otlp_config.logs")
+	ntmResult := readConfigSection(ntmCfg, "otlp_config.logs")
+
+	// Viper: HasSection=true lets the entry pass the filter; Get() resolves
+	// the nil to the registered default (false).
+	assert.Equal(t, map[string]interface{}{"enabled": false}, viperResult,
+		"Viper: null leaf passes HasSection filter → entry included with default value")
+
+	// NTM: both HasSection=false and IsConfigured=false → entry filtered out.
+	assert.Equal(t, map[string]interface{}{}, ntmResult,
+		"NTM: null leaf filtered out → empty map")
+
+	// This divergence is why YAML fixtures must use explicit values
+	// (e.g. "enabled: false") instead of null leaves ("enabled:").
 }
