@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import itertools
+from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any, cast
 
@@ -209,34 +210,40 @@ def list_observed_gpu_metrics_for_gpu_config(
     return metrics
 
 
-def fetch_metric_all_tags(
+def fetch_metric_all_tags_with_values(
     api: MetricsApiV2,
     metric_name: str,
-    allowed_tags: set[str],
+    wanted_tags: set[str],
     window_seconds: int = 14400,
     metric_scope_filter: str = "",
-) -> dict[str, list[str]]:
+) -> dict[str, set[str]]:
+    """
+    Fetch all tags and their values for a given metric name.
+
+    allowed_tags is a set of tag names that are allowed to be fetched.
+    window_seconds is the window in seconds to fetch the tags.
+    metric_scope_filter is the filter to apply to the metric.
+    """
     from datadog_api_client.v2.model.metric_all_tags import MetricAllTags
 
-    all_tags: dict[str, list[str]] = {}
-    grouped_tags = itertools.groupby(sorted(allowed_tags), key=lambda x: x.split("_", 1)[0])
+    all_tags: dict[str, set[str]] = defaultdict(set)
 
-    for match_filter, grouped_allowed_tags in grouped_tags:
+    for tag in wanted_tags:
         try:
             response = api.list_tags_by_metric_name(
                 metric_name=metric_name,
-                filter_match=match_filter,
+                filter_match=tag,
                 filter_include_tag_values=True,
                 page_limit=1000,
                 window_seconds=window_seconds,
                 filter_tags=metric_scope_filter,
+                filter_allow_partial=True,
             )
         except Exception as e:
-            raise ValueError(f"fetch all-tags for {metric_name} match {match_filter}: {e}") from e
+            raise ValueError(f"Could not fetch tag {tag} for {metric_name}: {e}") from e
 
         data = cast(MetricAllTags, response.data)
-        if not data or not data.attributes:
-            print(f"no data for {metric_name} match {match_filter}")
+        if not data or not data.attributes or not data.attributes.tags:
             continue
 
         indexed_tags = list[str](data.attributes.tags or [])
@@ -246,7 +253,9 @@ def fetch_metric_all_tags(
             key, sep, value = raw_tag.partition(":")
             if not sep or not key or not value:
                 continue
-            if key not in grouped_allowed_tags:
-                continue
-            all_tags.setdefault(key, []).append(value)
+
+            all_tags[tag].add(value)
+
+    print(f" · found {len(all_tags)} tags (out of {len(wanted_tags)} wanted) for {metric_name}")
+
     return all_tags

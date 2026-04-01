@@ -4,13 +4,15 @@ import os
 import re
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import Any, TypeVar
 
+from datadog_api_client.v2.api.metrics_api import MetricsApi as MetricsApiV2
 from invoke.exceptions import Exit
+from pydantic import BaseModel
 
 from tasks.libs.gpu.api import (
     discover_live_gpu_configs,
-    fetch_metric_all_tags,
+    fetch_metric_all_tags_with_values,
     list_observed_gpu_metrics_for_gpu_config,
     query_device_count,
     query_expected_metrics_presence_for_gpu_config,
@@ -25,11 +27,6 @@ from tasks.libs.gpu.types import (
     TagsSpec,
     ValidationResults,
 )
-
-if TYPE_CHECKING:
-    from datadog_api_client.v2.api.metrics_api import MetricsApi as MetricsApiV2
-    from pydantic import BaseModel
-
 
 SCALAR_QUERY_BATCH_SIZE = 50
 
@@ -139,21 +136,19 @@ def validate_metric_tags(
     window_seconds: int = 14400,
     metric_scope_filter: str | None = None,
 ) -> dict[str, list[str]]:
-    validated_tags = {tag_name for tag_name in expected_tags if tags_model.tags[tag_name].regex}
-    if tag_name_filter:
-        validated_tags = {tag_name for tag_name in validated_tags if tag_name_filter in tag_name}
-    if not validated_tags:
-        return {}
-
-    all_tags = fetch_metric_all_tags(
+    all_tags = fetch_metric_all_tags_with_values(
         api,
         metric_name,
-        validated_tags,
+        expected_tags,
         window_seconds=window_seconds,
         metric_scope_filter=metric_scope_filter or "",
     )
     invalid_values: dict[str, list[str]] = {}
-    for tag_name in sorted(validated_tags):
+    for tag_name in sorted(expected_tags):
+        if tag_name not in all_tags:
+            invalid_values[tag_name] = []
+            continue
+
         tag_spec = tags_model.tags[tag_name]
         if tag_spec.regex is None:
             continue
@@ -191,6 +186,7 @@ def compute_tag_validation(
             metric_name = f"{spec_model.metric_prefix}.{relative_metric_name}"
             if metric_name_filter and metric_name_filter not in metric_name:
                 continue
+
             try:
                 expected_tags = resolve_metric_tag_names(tags_model, metric_name, metric)
                 invalid_values = validate_metric_tags(
