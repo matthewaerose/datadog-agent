@@ -32,9 +32,9 @@ def validate_metrics(ctx, lookback_seconds=3600, org: str | None = None):
     # Import here to avoid bringing in dependencies that are not always installed.
     from tasks.libs.gpu.render import render_results
     from tasks.libs.gpu.types import ValidationResults
-    from tasks.libs.gpu.validation import compute_validation, require_api_keys, resolve_spec_paths
+    from tasks.libs.gpu.validation import Specs, compute_validation, require_api_keys
 
-    spec_path, architectures_path, _ = resolve_spec_paths()
+    specs = Specs.load()
     orgs = _select_orgs(org)
 
     results: ValidationResults | None = None
@@ -45,8 +45,7 @@ def validate_metrics(ctx, lookback_seconds=3600, org: str | None = None):
             with dd_auth_api_app_keys(ctx, dd_auth_domain):
                 require_api_keys()
                 result = compute_validation(
-                    spec_path,
-                    architectures_path,
+                    specs,
                     "datadoghq.com",
                     int(lookback_seconds),
                     progress_writer=print,
@@ -94,9 +93,9 @@ def validate_tags(
     Validate GPU metric tag values against regexes from tags.yaml for the selected Datadog org(s).
     """
     from tasks.libs.gpu.render import render_tag_validation_results
-    from tasks.libs.gpu.validation import compute_tag_validation, require_api_keys, resolve_spec_paths
+    from tasks.libs.gpu.validation import Specs, compute_tag_validation, require_api_keys
 
-    spec_path, _, tags_path = resolve_spec_paths()
+    specs = Specs.load()
     orgs = _select_orgs(org)
 
     all_failures: dict[str, dict[str, list[str]]] = {}
@@ -107,8 +106,7 @@ def validate_tags(
             with dd_auth_api_app_keys(ctx, dd_auth_domain):
                 require_api_keys()
                 failures, errors = compute_tag_validation(
-                    spec_path,
-                    tags_path,
+                    specs,
                     "datadoghq.com",
                     metric_name_filter=metric_name_filter,
                     tag_name_filter=tag_name_filter,

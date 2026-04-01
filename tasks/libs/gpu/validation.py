@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import re
 import time
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, TypeVar
 
@@ -18,6 +19,7 @@ from tasks.libs.gpu.api import (
     query_expected_metrics_presence_for_gpu_config,
 )
 from tasks.libs.gpu.types import (
+    AggregationsSpec,
     ArchitecturesSpec,
     GPUConfig,
     GPUConfigValidationResult,
@@ -38,27 +40,29 @@ def require_api_keys() -> None:
         raise Exit("DD_APP_KEY environment variable is required", code=1)
 
 
-def resolve_spec_paths() -> tuple[str, str, str]:
-    repo_root = Path(__file__).resolve().parents[3]
-    base_spec_path = repo_root / "pkg" / "collector" / "corechecks" / "gpu" / "spec"
-    spec_path = str(base_spec_path / "gpu_metrics.yaml")
-    architectures_path = str(base_spec_path / "architectures.yaml")
-    tags_path = str(base_spec_path / "tags.yaml")
+@dataclass
+class Specs:
+    aggregations: AggregationsSpec
+    architectures: ArchitecturesSpec
+    metrics: MetricsSpec
+    tags: TagsSpec
 
-    if not Path(spec_path).exists():
-        raise Exit(f"Spec file not found: {spec_path}", code=1)
-    if not Path(architectures_path).exists():
-        raise Exit(f"Architectures file not found: {architectures_path}", code=1)
-    if not Path(tags_path).exists():
-        raise Exit(f"Tags file not found: {tags_path}", code=1)
+    @staticmethod
+    def load():
+        repo_root = Path(__file__).resolve().parents[3]
+        base_spec_path = repo_root / "pkg" / "collector" / "corechecks" / "gpu" / "spec"
+        metrics = load_yaml_model(base_spec_path / "gpu_metrics.yaml", MetricsSpec)
+        architectures = load_yaml_model(base_spec_path / "architectures.yaml", ArchitecturesSpec)
+        tags = load_yaml_model(base_spec_path / "tags.yaml", TagsSpec)
+        aggregations = load_yaml_model(base_spec_path / "aggregations.yaml", AggregationsSpec)
 
-    return spec_path, architectures_path, tags_path
+        return Specs(metrics=metrics, architectures=architectures, tags=tags, aggregations=aggregations)
 
 
 ModelT = TypeVar("ModelT", bound=BaseModel)
 
 
-def load_yaml_model(path: str, model_cls: type[ModelT]) -> ModelT:
+def load_yaml_model(path: str | Path, model_cls: type[ModelT]) -> ModelT:
     import yaml
     from pydantic import ValidationError
 
@@ -68,6 +72,8 @@ def load_yaml_model(path: str, model_cls: type[ModelT]) -> ModelT:
         return model_cls.model_validate(raw)
     except ValidationError as e:
         raise ValueError(f"Invalid schema in {path}:\n{e}") from e
+    except Exception as e:
+        raise ValueError(f"Error loading {path}:\n{e}") from e
 
 
 def get_expected_metrics_for_gpu_config(spec_model: MetricsSpec, gpu_config: GPUConfig) -> dict[str, Metric]:
@@ -115,14 +121,12 @@ def batch_items(items: list[str], chunk_size: int) -> list[list[str]]:
     return [items[i : i + chunk_size] for i in range(0, len(items), chunk_size)]
 
 
-def _build_expected_tags_by_metric(
-    metrics_model: MetricsSpec, tags_model: TagsSpec, expected_metrics_map: dict[str, Metric]
-) -> dict[str, set[str]]:
+def _build_expected_tags_by_metric(specs: Specs, expected_metrics_map: dict[str, Metric]) -> dict[str, set[str]]:
     expected_tags_by_metric: dict[str, set[str]] = {}
     for metric_name in expected_metrics_map:
-        relative_name = metric_name.removeprefix(f"{metrics_model.metric_prefix}.")
+        relative_name = metric_name.removeprefix(f"{specs.metrics.metric_prefix}.")
         expected_tags_by_metric[metric_name] = get_expected_tags_for_metric(
-            tags_model, metrics_model.metrics[relative_name]
+            specs.tags, specs.metrics.metrics[relative_name]
         )
     return expected_tags_by_metric
 
@@ -160,8 +164,7 @@ def validate_metric_tags(
 
 
 def compute_tag_validation(
-    spec_path: str,
-    tags_path: str,
+    specs: Specs,
     site: str,
     metric_name_filter: str | None = None,
     tag_name_filter: str | None = None,
@@ -171,28 +174,23 @@ def compute_tag_validation(
     from datadog_api_client import ApiClient, Configuration
     from datadog_api_client.v2.api.metrics_api import MetricsApi as MetricsApiV2
 
-    from tasks.libs.gpu.types import MetricsSpec, TagsSpec
-
-    spec_model = load_yaml_model(spec_path, MetricsSpec)
-    tags_model = load_yaml_model(tags_path, TagsSpec)
-
     failures: dict[str, dict[str, list[str]]] = {}
     errors: list[str] = []
     config = Configuration()
     config.server_variables["site"] = site
     with ApiClient(config) as api_client:
         metrics_api_v2 = MetricsApiV2(api_client)
-        for relative_metric_name, metric in sorted(spec_model.metrics.items()):
-            metric_name = f"{spec_model.metric_prefix}.{relative_metric_name}"
+        for relative_metric_name, metric in sorted(specs.metrics.metrics.items()):
+            metric_name = f"{specs.metrics.metric_prefix}.{relative_metric_name}"
             if metric_name_filter and metric_name_filter not in metric_name:
                 continue
 
             try:
-                expected_tags = resolve_metric_tag_names(tags_model, metric_name, metric)
+                expected_tags = resolve_metric_tag_names(specs.tags, metric_name, metric)
                 invalid_values = validate_metric_tags(
                     metrics_api_v2,
                     metric_name,
-                    tags_model,
+                    specs.tags,
                     expected_tags,
                     tag_name_filter=tag_name_filter,
                     window_seconds=window_seconds,
@@ -216,14 +214,13 @@ def determine_result_state(result: GPUConfigValidationResult) -> GPUConfigValida
 
 def validate_gpu_config(
     metrics_api_v2: MetricsApiV2,
-    metrics_model: MetricsSpec,
-    tags_model: TagsSpec,
+    specs: Specs,
     gpu_config: GPUConfig,
     from_ts: int,
     to_ts: int,
     scalar_query_batch_size: int = SCALAR_QUERY_BATCH_SIZE,
 ) -> GPUConfigValidationResult:
-    expected_metrics_map = get_expected_metrics_for_gpu_config(metrics_model, gpu_config)
+    expected_metrics_map = get_expected_metrics_for_gpu_config(specs.metrics, gpu_config)
     expected_metrics = list(expected_metrics_map.keys())
     device_count = query_device_count(metrics_api_v2, gpu_config, from_ts, to_ts)
     query_filter = gpu_config.to_tag_filter()
@@ -238,7 +235,7 @@ def validate_gpu_config(
         result.state = GPUConfigValidationState.MISSING
         return result
 
-    expected_tags_by_metric = _build_expected_tags_by_metric(metrics_model, tags_model, expected_metrics_map)
+    expected_tags_by_metric = _build_expected_tags_by_metric(specs, expected_metrics_map)
 
     for metric_batch in batch_items(expected_metrics, scalar_query_batch_size):
         batch_present, batch_failures = query_expected_metrics_presence_for_gpu_config(
@@ -256,7 +253,7 @@ def validate_gpu_config(
         metrics_api_v2,
         gpu_config,
         max(to_ts - from_ts, 0),
-        metrics_model.metric_prefix,
+        specs.metrics.metric_prefix,
     )
     result.unknown_metrics = live_gpu_metrics - set(expected_metrics)
     result.state = determine_result_state(result)
@@ -275,8 +272,7 @@ def combine_known_and_live_gpu_configs(
 
 
 def compute_validation(
-    spec_path: str,
-    architectures_path: str,
+    specs: Specs,
     site: str,
     lookback_seconds: int,
     progress_writer: Any | None = None,
@@ -284,13 +280,9 @@ def compute_validation(
     from datadog_api_client import ApiClient, Configuration
     from datadog_api_client.v2.api.metrics_api import MetricsApi as MetricsApiV2
 
-    metrics_model = load_yaml_model(spec_path, MetricsSpec)
-    architectures_model = load_yaml_model(architectures_path, ArchitecturesSpec)
-    tags_path = resolve_spec_paths()[2]
-    tags_model = load_yaml_model(tags_path, TagsSpec)
     now = int(time.time())
     from_ts = now - int(lookback_seconds)
-    known_gpu_configs = architectures_model.build_combinations()
+    known_gpu_configs = specs.architectures.build_combinations()
     failing_count = 0
 
     config = Configuration()
@@ -307,8 +299,7 @@ def compute_validation(
         for gpu_config in gpu_configs:
             result = validate_gpu_config(
                 metrics_api_v2,
-                metrics_model,
-                tags_model,
+                specs,
                 gpu_config,
                 from_ts,
                 now,
@@ -325,8 +316,8 @@ def compute_validation(
 
     return ValidationResults(
         site=site,
-        metrics_count=len(metrics_model.metrics),
-        architectures_count=len(architectures_model.architectures),
+        metrics_count=len(specs.metrics.metrics),
+        architectures_count=len(specs.architectures.architectures),
         results=results,
         failing_count=failing_count,
     )
