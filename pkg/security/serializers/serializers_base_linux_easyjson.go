@@ -1154,6 +1154,12 @@ func easyjsonA1e47abeDecodeGithubComDataDogDatadogAgentPkgSecuritySerializers6(i
 			} else {
 				out.IsKworker = bool(in.Bool())
 			}
+		case "is_session_leader":
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.IsSessionLeader = bool(in.Bool())
+			}
 		case "is_exec":
 			if in.IsNull() {
 				in.Skip()
@@ -1513,6 +1519,11 @@ func easyjsonA1e47abeEncodeGithubComDataDogDatadogAgentPkgSecuritySerializers6(o
 		const prefix string = ",\"is_kworker\":"
 		out.RawString(prefix)
 		out.Bool(bool(in.IsKworker))
+	}
+	if in.IsSessionLeader {
+		const prefix string = ",\"is_session_leader\":"
+		out.RawString(prefix)
+		out.Bool(bool(in.IsSessionLeader))
 	}
 	if in.IsExec {
 		const prefix string = ",\"is_exec\":"
