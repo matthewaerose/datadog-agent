@@ -38,6 +38,7 @@ class Metric(BaseModel):
     custom_tags: list[str] = Field(default_factory=list)
     support: Support = Field(default_factory=Support)
     deprecated: bool = False
+    used_in_dd_ui: bool = Field(default=False)
 
 
 class TagSpec(BaseModel):

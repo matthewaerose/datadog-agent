@@ -130,13 +130,13 @@ def validate_tags(
         raise Exit(code=1)
 
 
-DEFAULT_METRIC_TABLE_OUTPUT = "pkg/collector/corechecks/gpu/spec/metric_table.csv"
+DEFAULT_METRIC_TABLE_OUTPUT = "pkg/collector/corechecks/gpu/spec/metric_table.tsv"
 
 
 @task(
     name="generate-metric-table",
     help={
-        "output": f"Output CSV path (defaults to {DEFAULT_METRIC_TABLE_OUTPUT})",
+        "output": f"Output TSV path (defaults to {DEFAULT_METRIC_TABLE_OUTPUT})",
     },
 )
 def generate_metric_table(_, output: str = DEFAULT_METRIC_TABLE_OUTPUT):
@@ -163,11 +163,12 @@ def generate_metric_table(_, output: str = DEFAULT_METRIC_TABLE_OUTPUT):
         "Group aggregation",
         "Granularity aggregation",
         "Granularity tags",
+        "Used in DD UI",
     ]
     rows_written = 0
 
     with open(output_path, "w", newline="") as csv_file:
-        writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+        writer = csv.DictWriter(csv_file, fieldnames=fieldnames, delimiter="\t")
         writer.writeheader()
 
         for metric_name, metric in sorted(specs.metrics.metrics.items()):
@@ -192,6 +193,7 @@ def generate_metric_table(_, output: str = DEFAULT_METRIC_TABLE_OUTPUT):
                 "Extra tags": "|".join(metric.custom_tags),
                 "MIG support": str(metric.support.device_modes.get("mig", False)).lower(),
                 "vGPU support": str(metric.support.device_modes.get("vgpu", False)).lower(),
+                "Used in DD UI": str(metric.used_in_dd_ui).lower(),
             }
 
             if metric.aggregation:
@@ -208,6 +210,7 @@ def generate_metric_table(_, output: str = DEFAULT_METRIC_TABLE_OUTPUT):
             if "process" in metric.tagsets:
                 granularity_tags.add("pid")
 
+            row["Granularity tags"] = f"{{{','.join(sorted(granularity_tags))}}}"
             writer.writerow(row)
             rows_written += 1
 
