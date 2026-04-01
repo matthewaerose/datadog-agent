@@ -131,7 +131,7 @@ func (e *CapsetEvent) UnmarshalBinary(data []byte) (int, error) {
 
 // UnmarshalBinary unmarshalls a binary representation of itself
 func (e *Credentials) UnmarshalBinary(data []byte) (int, error) {
-	if len(data) < 40 {
+	if len(data) < 48 {
 		return 0, ErrNotEnoughData
 	}
 
