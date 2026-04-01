@@ -62,4 +62,10 @@ u64 __attribute__((always_inline)) get_signal_struct_pids_offset() {
     LOAD_CONSTANT("signal_struct_pids_offset", offset);
     return offset;
 }
+
+u64 __attribute__((always_inline)) get_pidtype_sid_value() {
+    u64 value;
+    LOAD_CONSTANT("pidtype_sid_value", value);
+    return value;
+}
 #endif

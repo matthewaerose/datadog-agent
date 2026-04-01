@@ -830,13 +830,14 @@ int __attribute__((always_inline)) send_exec_event(ctx_t *ctx) {
     {
         u64 signal_offset = get_task_struct_signal_offset();
         u64 pids_offset = get_signal_struct_pids_offset();
-        if (signal_offset != 0 && pids_offset != 0) {
+        u64 pidtype_sid = get_pidtype_sid_value();
+        if (signal_offset != 0 && pids_offset != 0 && pidtype_sid != 0) {
             struct task_struct *cur_task = (struct task_struct *)bpf_get_current_task();
             void *signal_ptr = NULL;
             bpf_probe_read_kernel(&signal_ptr, sizeof(signal_ptr), (void *)cur_task + signal_offset);
             if (signal_ptr) {
                 struct pid *sid_pid = NULL;
-                bpf_probe_read_kernel(&sid_pid, sizeof(sid_pid), signal_ptr + pids_offset + 3 * sizeof(void *));
+                bpf_probe_read_kernel(&sid_pid, sizeof(sid_pid), signal_ptr + pids_offset + pidtype_sid * sizeof(void *));
                 if (sid_pid) {
                     u32 sid = 0;
                     bpf_probe_read_kernel(&sid, sizeof(sid), (void *)sid_pid + get_pid_numbers_offset());

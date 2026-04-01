@@ -158,6 +158,20 @@ func runOffsetofOnBTFType(fieldName string, ty btf.Type) uint64 {
 		return runOffsetofOnBTFTypeStructOrUnion(fieldName, uTy.Members)
 	}
 
+	eTy, ok := ty.(*btf.Enum)
+	if ok {
+		return runEnumValueLookup(fieldName, eTy)
+	}
+
+	return ErrorSentinel
+}
+
+func runEnumValueLookup(valueName string, e *btf.Enum) uint64 {
+	for _, v := range e.Values {
+		if v.Name == valueName {
+			return v.Value
+		}
+	}
 	return ErrorSentinel
 }
 

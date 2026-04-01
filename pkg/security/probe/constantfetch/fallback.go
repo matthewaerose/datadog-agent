@@ -90,6 +90,7 @@ func computeCallbacksTable() map[string]func(*kernel.Version) uint64 {
 		OffsetNameSignalStructStructTTY:       getSignalTTYOffset,
 		OffsetNameTaskStructSignal:            getTaskStructSignalOffset,
 		OffsetNameSignalStructPIDs:            getSignalStructPIDsOffset,
+		PIDTypeSIDValue:                       getPIDTypeSIDValue,
 		OffsetNameTTYStructStructName:         getTTYNameOffset,
 		OffsetNameCredStructUID:               getCredsUIDOffset,
 		OffsetNameCredStructCapInheritable:    getCredCapInheritableOffset,
@@ -1129,5 +1130,11 @@ func getTaskStructSignalOffset(_ *kernel.Version) uint64 {
 // This is the primary path through BTF; the fallback returns ErrorSentinel
 // to signal that the offset could not be determined.
 func getSignalStructPIDsOffset(_ *kernel.Version) uint64 {
+	return ErrorSentinel
+}
+
+// getPIDTypeSIDValue returns the value of the PIDTYPE_SID enum constant.
+// This is primarily resolved through BTF; the fallback returns ErrorSentinel.
+func getPIDTypeSIDValue(_ *kernel.Version) uint64 {
 	return ErrorSentinel
 }
