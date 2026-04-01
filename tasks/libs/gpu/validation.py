@@ -41,12 +41,12 @@ def require_api_keys() -> None:
         raise Exit("DD_APP_KEY environment variable is required", code=1)
 
 
-def resolve_spec_paths(spec: str | None, architectures: str | None, tags: str | None = None) -> tuple[str, str, str]:
+def resolve_spec_paths() -> tuple[str, str, str]:
     repo_root = Path(__file__).resolve().parents[3]
     base_spec_path = repo_root / "pkg" / "collector" / "corechecks" / "gpu" / "spec"
-    spec_path = spec or str(base_spec_path / "gpu_metrics.yaml")
-    architectures_path = architectures or str(base_spec_path / "architectures.yaml")
-    tags_path = tags or str(base_spec_path / "tags.yaml")
+    spec_path = str(base_spec_path / "gpu_metrics.yaml")
+    architectures_path = str(base_spec_path / "architectures.yaml")
+    tags_path = str(base_spec_path / "tags.yaml")
 
     if not Path(spec_path).exists():
         raise Exit(f"Spec file not found: {spec_path}", code=1)
@@ -150,7 +150,7 @@ def validate_metric_tags(
         metric_name,
         validated_tags,
         window_seconds=window_seconds,
-        metric_scope_filter=metric_scope_filter,
+        metric_scope_filter=metric_scope_filter or "",
     )
     invalid_values: dict[str, list[str]] = {}
     for tag_name in sorted(validated_tags):
@@ -290,7 +290,7 @@ def compute_validation(
 
     metrics_model = load_yaml_model(spec_path, MetricsSpec)
     architectures_model = load_yaml_model(architectures_path, ArchitecturesSpec)
-    tags_path = resolve_spec_paths(spec_path, architectures_path, None)[2]
+    tags_path = resolve_spec_paths()[2]
     tags_model = load_yaml_model(tags_path, TagsSpec)
     now = int(time.time())
     from_ts = now - int(lookback_seconds)
