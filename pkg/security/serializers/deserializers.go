@@ -65,11 +65,11 @@ func newProcess(ps *ProcessSerializer) model.Process {
 		IsThread:      ps.IsThread,
 		IsExecExec:    ps.IsExecExec,
 		PIDContext: model.PIDContext{
-			Pid:       ps.Pid,
-			Tid:       ps.Tid,
+			Pid:             ps.Pid,
+			Tid:             ps.Tid,
 			IsKworker:       ps.IsKworker,
 			IsSessionLeader: ps.IsSessionLeader,
-			PPid:      getPointerValue(ps.PPid),
+			PPid:            getPointerValue(ps.PPid),
 		},
 	}
 	if ps.ForkTime != nil {

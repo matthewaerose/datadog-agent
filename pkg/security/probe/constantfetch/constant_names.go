@@ -93,8 +93,8 @@ const (
 	OffsetNameTaskStructTGID       = "task_struct_tgid_offset"
 
 	// session leader detection
-	OffsetNameTaskStructSignal    = "task_struct_signal_offset"
-	OffsetNameSignalStructPIDs    = "signal_struct_pids_offset"
+	OffsetNameTaskStructSignal = "task_struct_signal_offset"
+	OffsetNameSignalStructPIDs = "signal_struct_pids_offset"
 
 	// splice event
 	OffsetNamePipeInodeInfoStructBufs     = "pipe_inode_info_bufs_offset"
