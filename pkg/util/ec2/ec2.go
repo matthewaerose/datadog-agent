@@ -95,7 +95,7 @@ func GetHostID(ctx context.Context) string {
 
 // IsRunningOn returns true if the agent is running on AWS
 func IsRunningOn(ctx context.Context) bool {
-	if _, err := GetHostname(ctx); err == nil {
+	if _, err := GetServicesDomain(ctx); err == nil {
 		return true
 	}
 	if isBoardVendorEC2() || isEC2UUID() {
@@ -131,6 +131,18 @@ func GetHostAliases(ctx context.Context) ([]string, error) {
 	}
 
 	return []string{}, nil
+}
+
+var servicesDomainFetcher = cachedfetch.Fetcher{
+	Name: "EC2 Services Domain",
+	Attempt: func(ctx context.Context) (interface{}, error) {
+		return ec2internal.GetMetadataItemWithMaxLength(ctx, imdsServicesDomain, ec2internal.UseIMDSv2(), true)
+	},
+}
+
+// GetServicesDomain fetches the services domain from the EC2 metadata API
+func GetServicesDomain(ctx context.Context) (string, error) {
+	return servicesDomainFetcher.FetchString(ctx)
 }
 
 var hostnameFetcher = cachedfetch.Fetcher{

@@ -39,6 +39,7 @@ func resetPackageVars() {
 	instanceIDFetcher.Reset()
 	publicIPv4Fetcher.Reset()
 	hostnameFetcher.Reset()
+	servicesDomainFetcher.Reset()
 	networkIDFetcher.Reset()
 }
 
@@ -572,8 +573,8 @@ func TestMetadataSourceIMDS(t *testing.T) {
 			io.WriteString(w, testIMDSToken)
 		case http.MethodGet: // metadata request
 			switch r.RequestURI {
-			case "/hostname":
-				io.WriteString(w, "ip-10-10-10-10.ec2.internal")
+			case "/services/domain":
+				io.WriteString(w, "amazonaws.com")
 			default:
 				w.WriteHeader(http.StatusNotFound)
 			}
@@ -594,7 +595,7 @@ func TestMetadataSourceIMDS(t *testing.T) {
 	assert.True(t, IsRunningOn(ctx))
 	assert.Equal(t, ec2internal.MetadataSourceIMDSv2, ec2internal.CurrentMetadataSource)
 
-	hostnameFetcher.Reset()
+	servicesDomainFetcher.Reset()
 	ec2internal.CurrentMetadataSource = ec2internal.MetadataSourceNone
 	conf.SetWithoutSource("ec2_prefer_imdsv2", false)
 	conf.SetWithoutSource("ec2_imdsv2_transition_payload_enabled", true)
@@ -602,7 +603,7 @@ func TestMetadataSourceIMDS(t *testing.T) {
 	assert.Equal(t, ec2internal.MetadataSourceIMDSv2, ec2internal.CurrentMetadataSource)
 
 	// trying IMDSv1
-	hostnameFetcher.Reset()
+	servicesDomainFetcher.Reset()
 	ec2internal.CurrentMetadataSource = ec2internal.MetadataSourceNone
 	conf.SetWithoutSource("ec2_prefer_imdsv2", false)
 	conf.SetWithoutSource("ec2_imdsv2_transition_payload_enabled", false)

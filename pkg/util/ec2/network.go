@@ -19,9 +19,10 @@ import (
 )
 
 var (
-	imdsHostname    = "/hostname"
-	imdsIPv4        = "/public-ipv4"
-	imdsNetworkMacs = "/network/interfaces/macs"
+	imdsHostname       = "/hostname"
+	imdsIPv4           = "/public-ipv4"
+	imdsNetworkMacs    = "/network/interfaces/macs"
+	imdsServicesDomain = "/services/domain"
 )
 
 var publicIPv4Fetcher = cachedfetch.Fetcher{
