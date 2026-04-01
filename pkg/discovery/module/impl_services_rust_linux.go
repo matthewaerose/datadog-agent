@@ -23,7 +23,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/discovery/model"
 )
 
-func (s *discovery) getServices(params core.Params) (*model.ServicesResponse, error) {
+func (s *discovery) getServicesRust(params core.Params) (*model.ServicesResponse, error) {
 	s.mux.Lock()
 	defer s.mux.Unlock()
 
