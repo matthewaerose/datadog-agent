@@ -7,8 +7,8 @@
 package processcheckimpl
 
 import (
-	"github.com/DataDog/datadog-go/v5/statsd"
 	compdef "github.com/DataDog/datadog-agent/comp/def"
+	"github.com/DataDog/datadog-go/v5/statsd"
 
 	"github.com/DataDog/datadog-agent/comp/core/config"
 	ipc "github.com/DataDog/datadog-agent/comp/core/ipc/def"
