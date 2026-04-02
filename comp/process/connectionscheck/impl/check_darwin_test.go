@@ -34,7 +34,7 @@ func TestConnectionsCheckDisabledOnDarwin(t *testing.T) {
 		workloadmetafxmock.MockModule(workloadmeta.NewParams()),
 		npcollectorimpl.MockModule(),
 		fx.Provide(func(t testing.TB) tagger.Component { return taggerfxmock.SetupFakeTagger(t) }),
-		fx.Provide(NewCheck),
+		fxutil.ProvideComponentConstructor(NewCheck),
 	))
 
 	assert.False(t, c.Object().IsEnabled())
