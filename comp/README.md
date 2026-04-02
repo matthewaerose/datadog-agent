@@ -472,7 +472,7 @@ It does not expose any public methods.
 
 ## [comp/network](https://pkg.go.dev/github.com/DataDog/datadog-agent/comp/network) (Component Bundle)
 
-*Datadog Team*: network-monitoring
+*Datadog Team*: cloud-network-monitoring
 
 Package network implements the "network" bundle, providing network monitoring components.
 
@@ -483,6 +483,8 @@ Package network implements the "network" bundle, providing network monitoring co
 Package networkdeviceconfig provides the component for retrieving network device configurations.
 
 ### [comp/networktracer](https://pkg.go.dev/github.com/DataDog/datadog-agent/comp/networktracer)
+
+*Datadog Team*: network-monitoring
 
 Package networktracer defines the component interface for network connection tracing.
 

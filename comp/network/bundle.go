@@ -17,7 +17,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 )
 
-// team: network-monitoring
+// team: cloud-network-monitoring
 
 type bundleOptions struct {
 	tracerouteModule    fx.Option
