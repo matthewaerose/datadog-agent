@@ -12,15 +12,13 @@ import (
 	"testing"
 
 	"github.com/DataDog/datadog-agent/comp/core/config"
-	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 	"github.com/stretchr/testify/assert"
-	"go.uber.org/fx"
 )
 
 func TestStatusOuput(t *testing.T) {
-	deps := fxutil.Test[Dependencies](t, fx.Options(
-		fx.Provide(func() config.Component { return config.NewMock(t) }),
-	))
+	deps := Dependencies{
+		Config: config.NewMock(t),
+	}
 
 	provides := NewStatus(deps)
 
