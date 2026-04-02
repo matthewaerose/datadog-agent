@@ -89,7 +89,7 @@ func TestProcessChecksIsEnabled(t *testing.T) {
 					return &statsd.NoOpClient{}
 				}),
 				fx.Provide(func() ipc.Component { return ipcmock.New(t) }),
-				fx.Provide(NewCheck),
+				fxutil.ProvideComponentConstructor(NewCheck),
 			))
 			assert.Equal(t, tc.enabled, c.Object().IsEnabled())
 		})
