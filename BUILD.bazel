@@ -93,6 +93,7 @@ ALL_BUILD_TAGS = [
 # gazelle:exclude comp/netflow/topn
 # gazelle:exclude comp/networkdeviceconfig
 # gazelle:exclude comp/networkpath
+# gazelle:exclude comp/networktracer
 # gazelle:exclude comp/notableevents
 # gazelle:exclude comp/otelcol/collector
 # gazelle:exclude comp/otelcol/collector-contrib/fx
