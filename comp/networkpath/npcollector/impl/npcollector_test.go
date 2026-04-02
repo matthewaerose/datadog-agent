@@ -1801,16 +1801,17 @@ network_path:
 				err := structure.UnmarshalKey(cfg, "network_path.collector.filters", &configs)
 				require.NoError(t, err)
 			}
-			// Ensure we have an empty slice (not nil) to override global defaults
-			if configs == nil {
-				configs = []connfilter.Config{}
-			}
+			// Convert configs to []map[string]any for viper compatibility (viper can't handle struct slices)
+			var filtersAny []map[string]any
+			b, err := json.Marshal(configs)
+			require.NoError(t, err)
+			require.NoError(t, json.Unmarshal(b, &filtersAny))
 			agentConfigs := map[string]any{
 				"network_path.connections_monitoring.enabled":         true,
 				"network_path.collector.disable_intra_vpc_collection": true,
 				"network_path.collector.source_excludes":              tt.sourceExcludes,
 				"network_path.collector.dest_excludes":                tt.destExcludes,
-				"network_path.collector.filters":                      configs,
+				"network_path.collector.filters":                      filtersAny,
 				"network_path.collector.monitor_ip_without_domain":    tt.monitorIPWithoutDomain,
 			}
 			stats := &teststatsd.Client{}
