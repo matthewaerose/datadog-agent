@@ -27,7 +27,7 @@ import (
 	"github.com/DataDog/datadog-agent/comp/process/hostinfo/hostinfoimpl"
 	"github.com/DataDog/datadog-agent/comp/process/processcheck/processcheckimpl"
 	runner "github.com/DataDog/datadog-agent/comp/process/runner/def"
-	"github.com/DataDog/datadog-agent/comp/process/submitter/impl"
+	submittermock "github.com/DataDog/datadog-agent/comp/process/submitter/mock"
 	"github.com/DataDog/datadog-agent/comp/process/types"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 	"github.com/DataDog/datadog-agent/pkg/util/testutil/flake"
@@ -114,7 +114,7 @@ type Deps struct {
 func createDeps(t *testing.T, confOverrides map[string]interface{}, options ...fx.Option) Deps {
 	return fxutil.Test[Deps](t, fx.Options(
 		fxutil.ProvideComponentConstructor(NewComponent),
-		fx.Provide(submitterimpl.NewMock),
+		submittermock.MockModule(),
 		hostinfoimpl.MockModule(),
 
 		// Checks
