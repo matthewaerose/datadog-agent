@@ -41,10 +41,7 @@ type statusProvider struct {
 // NewComponent creates a new trace agent status component.
 func NewComponent(reqs Requires) Provides {
 	return Provides{
-		StatusProvider: status.NewInformationProvider(statusProvider{
-			Config: reqs.Config,
-			Client: reqs.Client,
-		}),
+		StatusProvider: status.NewInformationProvider(statusProvider(reqs)),
 	}
 }
 
