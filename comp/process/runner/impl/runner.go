@@ -10,11 +10,11 @@ import (
 	"context"
 
 	"github.com/DataDog/datadog-agent/comp/core/config"
-	compdef "github.com/DataDog/datadog-agent/comp/def"
 	log "github.com/DataDog/datadog-agent/comp/core/log/def"
 	"github.com/DataDog/datadog-agent/comp/core/sysprobeconfig"
 	tagger "github.com/DataDog/datadog-agent/comp/core/tagger/def"
-	agentimpl "github.com/DataDog/datadog-agent/comp/process/agent/impl"
+	compdef "github.com/DataDog/datadog-agent/comp/def"
+	"github.com/DataDog/datadog-agent/comp/process/agent"
 	"github.com/DataDog/datadog-agent/comp/process/hostinfo"
 	runner "github.com/DataDog/datadog-agent/comp/process/runner/def"
 	submitter "github.com/DataDog/datadog-agent/comp/process/submitter/def"
@@ -24,7 +24,7 @@ import (
 )
 
 // for testing
-var agentEnabled = agentimpl.Enabled
+var agentEnabled = agent.Enabled
 
 // runnerImpl implements the Component.
 type runnerImpl struct {
