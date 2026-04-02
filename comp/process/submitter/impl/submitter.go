@@ -14,9 +14,9 @@ import (
 	"github.com/DataDog/datadog-go/v5/statsd"
 
 	"github.com/DataDog/datadog-agent/comp/core/config"
-	compdef "github.com/DataDog/datadog-agent/comp/def"
 	log "github.com/DataDog/datadog-agent/comp/core/log/def"
 	"github.com/DataDog/datadog-agent/comp/core/sysprobeconfig"
+	compdef "github.com/DataDog/datadog-agent/comp/def"
 	agentimpl "github.com/DataDog/datadog-agent/comp/process/agent/impl"
 	"github.com/DataDog/datadog-agent/comp/process/forwarders"
 	"github.com/DataDog/datadog-agent/comp/process/hostinfo"
@@ -43,7 +43,8 @@ type dependencies struct {
 	Statsd         statsd.ClientInterface
 }
 
-type result struct {
+// Provides defines what the submitter component exposes.
+type Provides struct {
 	compdef.Out
 
 	RTResponseNotifier <-chan types.RTResponse
@@ -54,7 +55,7 @@ type result struct {
 func NewComponent(deps dependencies) (Provides, error) {
 	s, err := processRunner.NewSubmitter(deps.Config, deps.Log, deps.Forwarders, deps.Statsd, deps.HostInfo.Object().HostName, deps.SysProbeConfig)
 	if err != nil {
-		return result{}, err
+		return Provides{}, err
 	}
 
 	if agentimpl.Enabled(deps.Config, deps.Checks, deps.Log) {
@@ -69,7 +70,7 @@ func NewComponent(deps dependencies) (Provides, error) {
 		})
 	}
 
-	return result{
+	return Provides{
 		Submitter: &submitterImpl{
 			s: s,
 		},
