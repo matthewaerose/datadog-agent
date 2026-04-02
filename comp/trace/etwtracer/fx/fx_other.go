@@ -7,3 +7,10 @@
 
 // Package fx provides the fx module for the etwtracer component.
 package fx
+
+import "github.com/DataDog/datadog-agent/pkg/util/fxutil"
+
+// Module defines the fx options for this component.
+func Module() fxutil.Module {
+	return fxutil.Component()
+}
