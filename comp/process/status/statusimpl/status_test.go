@@ -130,12 +130,8 @@ func TestStatusError(t *testing.T) {
 			assert.NoError(t, err)
 
 			// We replace windows line break by linux so the tests pass on every OS
-			expected := strings.ReplaceAll(string(errorResponse), "
-", "
-")
-			output := strings.ReplaceAll(b.String(), "
-", "
-")
+			expected := strings.ReplaceAll(string(errorResponse), "\r\n", "\n")
+			output := strings.ReplaceAll(b.String(), "\r\n", "\n")
 
 			assert.Equal(t, expected, output)
 		}},
