@@ -9,8 +9,6 @@
 package mock
 
 import (
-	"go.uber.org/fx"
-
 	npcollectorimpl "github.com/DataDog/datadog-agent/comp/networkpath/npcollector/impl"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 )
@@ -18,6 +16,6 @@ import (
 // MockModule defines the fx options for the mock component.
 func MockModule() fxutil.Module {
 	return fxutil.Component(
-		fx.Provide(npcollectorimpl.NewMock),
+		fxutil.ProvideComponentConstructor(npcollectorimpl.NewMock),
 	)
 }
