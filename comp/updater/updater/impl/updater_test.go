@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	compdef "github.com/DataDog/datadog-agent/comp/def"
-	"github.com/DataDog/datadog-agent/comp/remote-config/rcservice"
+	rcservice "github.com/DataDog/datadog-agent/comp/remote-config/rcservice/def"
 	"github.com/DataDog/datadog-agent/pkg/util/option"
 )
 

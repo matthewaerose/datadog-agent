@@ -15,7 +15,7 @@ import (
 	"github.com/DataDog/datadog-agent/comp/core/hostname"
 	log "github.com/DataDog/datadog-agent/comp/core/log/def"
 	compdef "github.com/DataDog/datadog-agent/comp/def"
-	"github.com/DataDog/datadog-agent/comp/remote-config/rcservice"
+	rcservice "github.com/DataDog/datadog-agent/comp/remote-config/rcservice/def"
 	updatercomp "github.com/DataDog/datadog-agent/comp/updater/updater/def"
 	"github.com/DataDog/datadog-agent/pkg/fleet/daemon"
 	"github.com/DataDog/datadog-agent/pkg/util/option"
