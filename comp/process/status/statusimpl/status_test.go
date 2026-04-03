@@ -3,6 +3,8 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2023-present Datadog, Inc.
 
+//go:build test
+
 package statusimpl
 
 import (
@@ -128,8 +130,12 @@ func TestStatusError(t *testing.T) {
 			assert.NoError(t, err)
 
 			// We replace windows line break by linux so the tests pass on every OS
-			expected := strings.ReplaceAll(string(errorResponse), "\r\n", "\n")
-			output := strings.ReplaceAll(b.String(), "\r\n", "\n")
+			expected := strings.ReplaceAll(string(errorResponse), "
+", "
+")
+			output := strings.ReplaceAll(b.String(), "
+", "
+")
 
 			assert.Equal(t, expected, output)
 		}},
