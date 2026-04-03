@@ -257,4 +257,3 @@ func TestTelemetryCoreAgent(t *testing.T) {
 
 	http.Handle("/telemetry", telemetryHandler)
 }
-
