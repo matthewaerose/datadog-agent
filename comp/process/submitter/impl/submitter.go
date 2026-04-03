@@ -14,9 +14,9 @@ import (
 	"github.com/DataDog/datadog-go/v5/statsd"
 
 	"github.com/DataDog/datadog-agent/comp/core/config"
-	compdef "github.com/DataDog/datadog-agent/comp/def"
 	log "github.com/DataDog/datadog-agent/comp/core/log/def"
 	"github.com/DataDog/datadog-agent/comp/core/sysprobeconfig"
+	compdef "github.com/DataDog/datadog-agent/comp/def"
 	"github.com/DataDog/datadog-agent/comp/process/agent"
 	"github.com/DataDog/datadog-agent/comp/process/forwarders"
 	"github.com/DataDog/datadog-agent/comp/process/hostinfo"
