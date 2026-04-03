@@ -165,7 +165,7 @@ int BPF_PROG(tcp_connect_entry, struct sock *sk) {
     }
     log_debug("tcp_connect: sk=%p", sk);
     sk_stats->tup.pid = GET_USER_MODE_PID(bpf_get_current_pid_tgid());
-    sk_stats->start_ms = convert_ns_to_ms(bpf_ktime_get_ns());
+    sk_stats->start_ns = bpf_ktime_get_ns();
     sk_stats->direction = CONN_DIRECTION_OUTGOING;
     return 0;
 }
@@ -178,7 +178,7 @@ int BPF_PROG(inet_csk_accept_exit, struct sock *orig_sk, int flags, int *err, bo
     }
     log_debug("inet_csk_accept: sk=%p", sk);
     sk_stats->tup.pid = GET_USER_MODE_PID(bpf_get_current_pid_tgid());
-    sk_stats->start_ms = convert_ns_to_ms(bpf_ktime_get_ns());
+    sk_stats->start_ns = bpf_ktime_get_ns();
     sk_stats->direction = CONN_DIRECTION_INCOMING;
     sk_stats->state_transitions |= (1 << TCP_ESTABLISHED);
     return 0;
@@ -210,10 +210,6 @@ int BPF_PROG(tcp_done_entry, struct sock *sk) {
         return 0;
     }
 
-    __u64 start_ns = convert_ms_to_ns(conn.conn_stats.duration_ms);
-    __u64 delta_ns = bpf_ktime_get_ns() - start_ns;
-    conn.conn_stats.duration_ms = convert_ns_to_ms(delta_ns);
-
     bpf_ringbuf_output(&conn_close_event, &conn, sizeof(conn_t), get_ringbuf_flags(sizeof(conn_t)));
     return 0;
 }
@@ -232,10 +228,6 @@ int BPF_PROG(tcp_close_entry, struct sock *sk) {
     if (!create_tcp_conn(&conn, sk, sk_stats, NULL)) {
         return 0;
     }
-
-    __u64 start_ns = convert_ms_to_ns(conn.conn_stats.duration_ms);
-    __u64 delta_ns = bpf_ktime_get_ns() - start_ns;
-    conn.conn_stats.duration_ms = convert_ns_to_ms(delta_ns);
 
     bpf_ringbuf_output(&conn_close_event, &conn, sizeof(conn_t), get_ringbuf_flags(sizeof(conn_t)));
     return 0;

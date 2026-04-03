@@ -7,6 +7,10 @@
 #define TCP_ECN_OK	1
 #endif
 
+#ifndef NSEC_PER_SEC
+#define NSEC_PER_SEC	1000000000L
+#endif
+
 typedef struct {
     __u64 sent_bytes;
     __u64 recv_bytes;
@@ -26,21 +30,21 @@ typedef struct {
     __u16 failure_reason;
 
     tcp_event_stats_t tcp_event_stats;
-    time_ms_t start_ms;
+    __u64 start_ns;
     __u8 direction;
 } sk_tcp_stats_t;
 
 typedef struct {
     conn_tuple_t tup;
 
+    __u64 timestamp_ns;
+    __u64 start_ns;
     __u64 sent_bytes;
     __u64 recv_bytes;
     __u32 sent_packets;
     __u32 recv_packets;
     __u8 flags;
     __u8 direction;
-    time_ms_t timestamp_ms;
-    time_ms_t start_ms;
 } sk_udp_stats_t;
 
 #endif
