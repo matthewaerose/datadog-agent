@@ -27,6 +27,7 @@ import (
 	"github.com/DataDog/datadog-agent/comp/core/telemetry/telemetryimpl"
 	statsdimpl "github.com/DataDog/datadog-agent/comp/dogstatsd/statsd/impl"
 	agent "github.com/DataDog/datadog-agent/comp/process/agent/def"
+	"github.com/DataDog/datadog-agent/comp/core/status"
 	"github.com/DataDog/datadog-agent/comp/process/hostinfo/hostinfoimpl"
 	"github.com/DataDog/datadog-agent/comp/process/processcheck/processcheckimpl"
 	runnerfx "github.com/DataDog/datadog-agent/comp/process/runner/fx"
@@ -105,7 +106,7 @@ func TestProcessAgentComponentOnLinux(t *testing.T) {
 				fx.Provide(func(t testing.TB) log.Component { return logmock.New(t) }),
 				fx.Provide(func(t testing.TB) tagger.Component { return taggerfxmock.SetupFakeTagger(t) }),
 				sysprobeconfigimpl.MockModule(),
-				fx.Provide(NewComponent),
+				fxutil.ProvideComponentConstructor(NewComponent),
 				hostnameimpl.MockModule(),
 				fx.Provide(func() configComp.Component {
 					return configComp.NewMock(t)
@@ -152,8 +153,13 @@ func TestStatusProvider(t *testing.T) {
 		},
 	}
 
+	type testOut struct {
+		fx.In
+		Providers []status.Provider `group:"status"`
+	}
+
 	for _, tc := range tests {
-		t.Run(tc.name, func(*testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			originalFlavor := flavor.GetFlavor()
 			flavor.SetFlavor(tc.agentFlavor)
 			defer func() {
@@ -162,12 +168,12 @@ func TestStatusProvider(t *testing.T) {
 				Once = sync.Once{}
 			}()
 
-			deps := fxutil.Test[dependencies](t, fx.Options(
+			out := fxutil.Test[testOut](t, fx.Options(
+				fxutil.ProvideComponentConstructor(NewComponent),
 				runnerfx.Module(),
 				hostinfoimpl.MockModule(),
 				submittermock.MockModule(),
 				statsdimpl.MockModule(),
-				fx.Provide(NewComponent),
 				processcheckimpl.MockModule(),
 				fx.Provide(func(t testing.TB) log.Component { return logmock.New(t) }),
 				fx.Provide(func(t testing.TB) tagger.Component { return taggerfxmock.SetupFakeTagger(t) }),
@@ -190,9 +196,14 @@ func TestStatusProvider(t *testing.T) {
 				}),
 			))
 
-			provides, err := newProcessAgent(deps)
-			assert.IsType(t, tc.expected, provides.StatusProvider.Provider)
-			assert.NoError(t, err)
+			var foundProvider status.Provider
+			for _, p := range out.Providers {
+				if p != nil {
+					foundProvider = p
+					break
+				}
+			}
+			assert.IsType(t, tc.expected, foundProvider)
 		})
 	}
 }
@@ -209,12 +220,12 @@ func TestTelemetryCoreAgent(t *testing.T) {
 		Once = sync.Once{}
 	}()
 
-	deps := fxutil.Test[dependencies](t, fx.Options(
+	_ = fxutil.Test[agent.Component](t, fx.Options(
+		fxutil.ProvideComponentConstructor(NewComponent),
 		runnerfx.Module(),
 		hostinfoimpl.MockModule(),
 		submittermock.MockModule(),
 		statsdimpl.MockModule(),
-		fx.Provide(NewComponent),
 		processcheckimpl.MockModule(),
 		fx.Provide(func(t testing.TB) log.Component { return logmock.New(t) }),
 		fx.Provide(func(t testing.TB) tagger.Component { return taggerfxmock.SetupFakeTagger(t) }),
@@ -239,9 +250,6 @@ func TestTelemetryCoreAgent(t *testing.T) {
 		}),
 	))
 
-	_, err := newProcessAgent(deps)
-	assert.NoError(t, err)
-
 	tel := fxutil.Test[telemetry.Mock](t, telemetryimpl.MockModule())
 	tel.Reset()
 	// Setup expvar server
@@ -249,3 +257,4 @@ func TestTelemetryCoreAgent(t *testing.T) {
 
 	http.Handle("/telemetry", telemetryHandler)
 }
+
