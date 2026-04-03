@@ -10,22 +10,12 @@ package npcollectorimpl
 import (
 	"iter"
 
-	"go.uber.org/fx"
-
 	npmodel "github.com/DataDog/datadog-agent/comp/networkpath/npcollector/model"
-	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 )
 
 type npCollectorMock struct{}
 
 func (s *npCollectorMock) ScheduleNetworkPathTests(_conns iter.Seq[npmodel.NetworkPathConnection]) {}
-
-// MockModule defines the fx options for the mock component.
-func MockModule() fxutil.Module {
-	return fxutil.Component(
-		fx.Provide(NewMock),
-	)
-}
 
 // NewMock creates a mock npcollector component.
 func NewMock() Provides {
