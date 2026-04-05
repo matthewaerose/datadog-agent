@@ -5,63 +5,25 @@
 
 package telemetry
 
-import "sync"
+import def "github.com/DataDog/datadog-agent/comp/core/telemetry/def"
 
-// StatsTelemetrySender contains methods needed for sending stats metrics
-type StatsTelemetrySender interface {
-	Count(metric string, value float64, hostname string, tags []string)
-	Gauge(metric string, value float64, hostname string, tags []string)
-	GaugeNoIndex(metric string, value float64, hostname string, tags []string)
-}
+// StatsTelemetrySender is an alias for the canonical type in comp/core/telemetry/def.
+type StatsTelemetrySender = def.StatsTelemetrySender
 
-// StatsTelemetryProvider handles stats telemetry and passes it on to a sender
-type StatsTelemetryProvider struct {
-	sender StatsTelemetrySender
-	m      sync.RWMutex
-}
-
-var (
-	statsProvider = &StatsTelemetryProvider{}
-)
+// StatsTelemetryProvider is an alias for the canonical type in comp/core/telemetry/def.
+type StatsTelemetryProvider = def.StatsTelemetryProvider
 
 // NewStatsTelemetryProvider creates a new instance of StatsTelemetryProvider
 func NewStatsTelemetryProvider(sender StatsTelemetrySender) *StatsTelemetryProvider {
-	return &StatsTelemetryProvider{sender: sender}
+	return def.NewStatsTelemetryProvider(sender)
 }
 
-// RegisterStatsSender regsiters a sender to send the stats metrics
+// RegisterStatsSender registers a sender to send the stats metrics
 func RegisterStatsSender(sender StatsTelemetrySender) {
-	statsProvider.m.Lock()
-	defer statsProvider.m.Unlock()
-	statsProvider.sender = sender
+	def.RegisterStatsSender(sender)
 }
 
 // GetStatsTelemetryProvider gets an instance of the current stats telemetry provider
 func GetStatsTelemetryProvider() *StatsTelemetryProvider {
-	return statsProvider
-}
-
-// Count reports a count metric to the sender
-func (s *StatsTelemetryProvider) Count(metric string, value float64, tags []string) {
-	s.send(func(sender StatsTelemetrySender) { sender.Count(metric, value, "", tags) })
-}
-
-// Gauge reports a gauge metric to the sender
-func (s *StatsTelemetryProvider) Gauge(metric string, value float64, tags []string) {
-	s.send(func(sender StatsTelemetrySender) { sender.Gauge(metric, value, "", tags) })
-}
-
-// GaugeNoIndex reports a gauge metric not indexed to the sender
-func (s *StatsTelemetryProvider) GaugeNoIndex(metric string, value float64, tags []string) {
-	s.send(func(sender StatsTelemetrySender) { sender.GaugeNoIndex(metric, value, "", tags) })
-}
-
-func (s *StatsTelemetryProvider) send(senderFct func(sender StatsTelemetrySender)) {
-	s.m.RLock()
-	defer s.m.RUnlock()
-	if s.sender == nil {
-		return
-	}
-
-	senderFct(s.sender)
+	return def.GetStatsTelemetryProvider()
 }
