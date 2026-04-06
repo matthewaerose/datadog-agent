@@ -30,6 +30,12 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/safeelf"
 )
 
+// maxNoLineInfoFunctions is a regression backstop for the DWARF line table
+// fallback in collectLineDataForRange. Without the fallback, ~4000+ functions
+// lose line data silently (become NoReturnReasonNoBody). Current max across
+// all toolchains/architectures is ~940. See https://github.com/DataDog/datadog-agent/pull/46274
+const maxNoLineInfoFunctions = 1100
+
 func TestIRGenAllProbes(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping in short mode")
@@ -158,6 +164,9 @@ func verifyIR(t *testing.T, p *ir.Program) {
 		}
 	}
 	t.Logf("NoReturnReasonNoBody: %d noBody + %d singleInstr", noBodyCount, singleInstrCount)
+	if total := noBodyCount + singleInstrCount; total > maxNoLineInfoFunctions {
+		t.Errorf("too many functions without line info: %d (noBody=%d, singleInstr=%d); max %d", total, noBodyCount, singleInstrCount, maxNoLineInfoFunctions)
+	}
 	kindCounts := make(map[ir.IssueKind]int)
 	defer func() {
 		for kind, count := range kindCounts {
