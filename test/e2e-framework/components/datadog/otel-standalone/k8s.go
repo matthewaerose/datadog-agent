@@ -31,15 +31,69 @@ import (
 )
 
 const (
-	appLabel  = "standalone-otel-agent"
-	saName    = "standalone-otel-agent"
-	crName    = "standalone-otel-agent"
-	crbName   = "standalone-otel-agent"
-	configKey = "otel-config.yaml"
-	configDir = "/etc/datadog-agent"
+	appLabel   = "standalone-otel-agent"
+	saName     = "standalone-otel-agent"
+	crName     = "standalone-otel-agent"
+	crbName    = "standalone-otel-agent"
+	configKey  = "otel-config.yaml"
+	configDir  = "/etc/datadog-agent"
 	configPath = configDir + "/" + configKey
 	binaryPath = "/opt/datadog-agent/embedded/bin/otel-agent"
 )
+
+// AppOption is a functional option for K8sAppDefinition that controls
+// application-level deployment (env vars, volumes, K8s Secrets, etc.).
+type AppOption func(*appConfig)
+
+// appConfig holds the accumulated application-level options.
+type appConfig struct {
+	extraEnvVars      corev1.EnvVarArray
+	extraVolumes      corev1.VolumeArray
+	extraVolumeMounts corev1.VolumeMountArray
+	k8sSecrets        []appSecretSpec
+	skipDefaultHostname bool
+}
+
+// appSecretSpec describes a Kubernetes Opaque secret to create before the DaemonSet.
+type appSecretSpec struct {
+	name string
+	data map[string]string
+}
+
+// WithExtraEnvVars appends env vars to the otel-agent container.
+// If you need to override DD_HOSTNAME, use WithoutDefaultHostname() so the
+// downward-API DD_HOSTNAME does not shadow your value.
+func WithExtraEnvVars(vars ...corev1.EnvVarInput) AppOption {
+	return func(o *appConfig) { o.extraEnvVars = append(o.extraEnvVars, vars...) }
+}
+
+// WithExtraVolumes appends volumes to the DaemonSet pod spec.
+func WithExtraVolumes(vols ...corev1.VolumeInput) AppOption {
+	return func(o *appConfig) { o.extraVolumes = append(o.extraVolumes, vols...) }
+}
+
+// WithExtraVolumeMounts appends volume mounts to the otel-agent container.
+func WithExtraVolumeMounts(mounts ...corev1.VolumeMountInput) AppOption {
+	return func(o *appConfig) { o.extraVolumeMounts = append(o.extraVolumeMounts, mounts...) }
+}
+
+// WithK8sSecret creates a Kubernetes Opaque secret in the DaemonSet namespace
+// before the DaemonSet starts so pods can mount it immediately.
+// data maps secret keys to their plaintext values (Kubernetes handles base64).
+func WithK8sSecret(name string, data map[string]string) AppOption {
+	return func(o *appConfig) {
+		o.k8sSecrets = append(o.k8sSecrets, appSecretSpec{name: name, data: data})
+	}
+}
+
+// WithoutDefaultHostname disables the built-in DD_HOSTNAME downward-API env var
+// (which normally resolves to the node name via spec.nodeName).
+// Use this when you want to supply DD_HOSTNAME yourself via WithExtraEnvVars so
+// that the agent reads your value first — Go's os.Getenv returns the first
+// matching variable, and the downward-API entry would otherwise shadow yours.
+func WithoutDefaultHostname() AppOption {
+	return func(o *appConfig) { o.skipDefaultHostname = true }
+}
 
 // K8sAppDefinition deploys the Datadog otel-agent as a standalone DaemonSet.
 // It merges the fakeintake URL into the OTel exporter config so that telemetry
@@ -48,13 +102,22 @@ const (
 // The returned *agent.KubernetesAgent has LinuxNodeAgent.LabelSelectors["app"]
 // set to "standalone-otel-agent", which is what test utilities such as
 // getAgentPod use to locate the pod.
-func K8sAppDefinition(e config.Env, kubeProvider *kubernetes.Provider, namespace string, otelConfig string, fakeIntake *fakeintake.Fakeintake, opts ...pulumi.ResourceOption) (*agent.KubernetesAgent, error) {
+//
+// Pass AppOption values to customise the deployment (extra env vars, volumes,
+// K8s Secrets, etc.).  Pulumi resource options are always added internally.
+func K8sAppDefinition(e config.Env, kubeProvider *kubernetes.Provider, namespace string, otelConfig string, fakeIntake *fakeintake.Fakeintake, appOpts ...AppOption) (*agent.KubernetesAgent, error) {
+	// Apply functional options.
+	acfg := &appConfig{}
+	for _, opt := range appOpts {
+		opt(acfg)
+	}
+
 	return components.NewComponent(e, "standalone-otel-agent", func(comp *agent.KubernetesAgent) error {
-		opts = append(opts,
+		opts := []pulumi.ResourceOption{
 			pulumi.Provider(kubeProvider),
 			pulumi.Parent(kubeProvider),
 			pulumi.DeletedWith(kubeProvider),
-		)
+		}
 
 		// Build the merged OTel config ConfigMap data, injecting the fakeintake URL.
 		configMapData, err := buildConfigMapData(otelConfig, fakeIntake)
@@ -73,6 +136,25 @@ func K8sAppDefinition(e config.Env, kubeProvider *kubernetes.Provider, namespace
 		}
 
 		nsOpts := append(opts, utils.PulumiDependsOn(ns))
+
+		// Create any K8s Secrets requested via WithK8sSecret AppOptions.
+		// These are created before the DaemonSet so that pods can mount them on startup.
+		for _, spec := range acfg.k8sSecrets {
+			stringData := make(pulumi.StringMap, len(spec.data))
+			for k, v := range spec.data {
+				stringData[k] = pulumi.String(v)
+			}
+			_, err := corev1.NewSecret(e.Ctx(), spec.name, &corev1.SecretArgs{
+				Metadata: metav1.ObjectMetaArgs{
+					Name:      pulumi.String(spec.name),
+					Namespace: pulumi.String(namespace),
+				},
+				StringData: stringData,
+			}, nsOpts...)
+			if err != nil {
+				return err
+			}
+		}
 
 		// Image pull secret (required in CI where images are pulled from internal registry)
 		var imagePullSecrets corev1.LocalObjectReferenceArray
@@ -223,8 +305,12 @@ func K8sAppDefinition(e config.Env, kubeProvider *kubernetes.Provider, namespace
 		// DaemonSet
 		imagePath := dockerOTelAgentFullImagePath(e)
 
-		// Build the env var list. Start with the static required vars.
-		envVars := corev1.EnvVarArray{
+		// Build the env var list. AppOption env vars come first so that they take
+		// precedence over defaults when the caller overrides a variable such as
+		// DD_HOSTNAME (Go's os.Getenv returns the first match).
+		var envVars corev1.EnvVarArray
+		envVars = append(envVars, acfg.extraEnvVars...)
+		envVars = append(envVars,
 			&corev1.EnvVarArgs{
 				Name:  pulumi.String("DD_API_KEY"),
 				Value: e.AgentAPIKey(),
@@ -249,16 +335,21 @@ func K8sAppDefinition(e config.Env, kubeProvider *kubernetes.Provider, namespace
 					},
 				},
 			},
+		)
+		if !acfg.skipDefaultHostname {
 			// Provide an explicit hostname so standalone mode does not have to
 			// wait for workloadmeta to resolve the node name at startup.
-			&corev1.EnvVarArgs{
+			// Callers that need to set their own DD_HOSTNAME (e.g. for ENC[]
+			// secrets resolution tests) should pass WithoutDefaultHostname() to
+			// prevent this entry from shadowing their value.
+			envVars = append(envVars, &corev1.EnvVarArgs{
 				Name: pulumi.String("DD_HOSTNAME"),
 				ValueFrom: &corev1.EnvVarSourceArgs{
 					FieldRef: &corev1.ObjectFieldSelectorArgs{
 						FieldPath: pulumi.String("spec.nodeName"),
 					},
 				},
-			},
+			})
 		}
 		// When testing against fakeintake, route the agent serializer (used for
 		// dogtelextension liveness metrics) to the fakeintake URL so that metrics
@@ -300,13 +391,13 @@ func K8sAppDefinition(e config.Env, kubeProvider *kubernetes.Provider, namespace
 									pulumi.String(configPath),
 								},
 								Env: envVars,
-								VolumeMounts: corev1.VolumeMountArray{
+								VolumeMounts: append(corev1.VolumeMountArray{
 									&corev1.VolumeMountArgs{
 										Name:      pulumi.String("otel-config"),
 										MountPath: pulumi.String(configDir),
 										ReadOnly:  pulumi.BoolPtr(true),
 									},
-								},
+								}, acfg.extraVolumeMounts...),
 								Resources: &corev1.ResourceRequirementsArgs{
 									Limits: pulumi.StringMap{
 										"cpu":    pulumi.String("500m"),
@@ -319,14 +410,14 @@ func K8sAppDefinition(e config.Env, kubeProvider *kubernetes.Provider, namespace
 								},
 							},
 						},
-						Volumes: corev1.VolumeArray{
+						Volumes: append(corev1.VolumeArray{
 							&corev1.VolumeArgs{
 								Name: pulumi.String("otel-config"),
 								ConfigMap: &corev1.ConfigMapVolumeSourceArgs{
 									Name: cm.Metadata.Name(),
 								},
 							},
-						},
+						}, acfg.extraVolumes...),
 					},
 				},
 			},

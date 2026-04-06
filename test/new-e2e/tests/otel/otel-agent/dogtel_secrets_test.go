@@ -7,21 +7,27 @@
 package otelagent
 
 import (
-	"context"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	corev1 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/core/v1"
+	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 
-	"github.com/DataDog/datadog-agent/test/e2e-framework/components/datadog/kubernetesagentparams"
+	"github.com/DataDog/datadog-agent/test/e2e-framework/common/config"
+	"github.com/DataDog/datadog-agent/test/e2e-framework/components/datadog/agent"
+	fakeintakeComp "github.com/DataDog/datadog-agent/test/e2e-framework/components/datadog/fakeintake"
+	otelstandalone "github.com/DataDog/datadog-agent/test/e2e-framework/components/datadog/otel-standalone"
 	scenkindvm "github.com/DataDog/datadog-agent/test/e2e-framework/scenarios/aws/kindvm"
 	"github.com/DataDog/datadog-agent/test/e2e-framework/testing/e2e"
 	"github.com/DataDog/datadog-agent/test/e2e-framework/testing/environments"
 	provkindvm "github.com/DataDog/datadog-agent/test/e2e-framework/testing/provisioners/aws/kubernetes/kindvm"
+	provlocal "github.com/DataDog/datadog-agent/test/e2e-framework/testing/provisioners/local/kubernetes"
+	"github.com/DataDog/datadog-agent/test/e2e-framework/testing/provisioners"
 	"github.com/DataDog/datadog-agent/test/new-e2e/tests/otel/utils"
+
+	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes"
 )
 
 const (
@@ -33,66 +39,82 @@ const (
 	dogtelResolvedHostname = "dogtel-secrets-test-host"
 )
 
-// dogtelStandaloneHelmValues is the base Helm values block used by dogtel
-// secrets tests. It enables the otel-agent (DD_OTEL_STANDALONE=true) and
-// disables the core agent's competing data-collection features.
-//
-// Note: the Datadog Helm chart unconditionally includes the core agent container
-// in the DaemonSet pod — it cannot be removed via chart values. Disabling the
-// features below is the correct way to achieve a "standalone otel-agent only"
-// deployment until a future chart version supports omitting the core agent.
-const dogtelStandaloneHelmValues = `
-datadog:
-  otelCollector:
-    useStandaloneImage: false
-  # Disable core agent collection features – otel-agent handles all telemetry.
-  apm:
-    portEnabled: false
-    socketEnabled: false
-    instrumentation:
-      enabled: false
-  logs:
-    enabled: false
-    containerCollectAll: false
-    containerCollectUsingFiles: false
-  processAgent:
-    processCollection: false
-    containerCollection: false
-  helmCheck:
-    enabled: false
-  kubeStateMetricsCore:
-    enabled: false
-agents:
-  containers:
-    otelAgent:
-      env:
-        - name: DD_OTEL_STANDALONE
-          value: 'true'
-`
-
 // dogtelSecretsTestSuite verifies that secretsfx.Module() (real secrets) is wired
 // when DD_OTEL_STANDALONE=true by confirming ENC[] handle resolution end-to-end.
 type dogtelSecretsTestSuite struct {
 	e2e.BaseSuite[environments.Kubernetes]
 }
 
+// dogtelSecretsStandaloneProvisioner returns a provisioner that deploys the
+// otel-agent as a standalone DaemonSet (no core agent, no Helm chart) with:
+//   - A Kubernetes secret pre-created containing the resolved hostname
+//   - DD_SECRET_BACKEND_COMMAND pointing at the built-in multi-provider script
+//   - DD_HOSTNAME=ENC[file@...] referencing the secret
+//
+// Using the standalone DaemonSet avoids sidecar interference: in Helm sidecar
+// mode the core agent's hostname resolution can shadow the otel-agent container's
+// own DD_HOSTNAME env var.
+func dogtelSecretsStandaloneProvisioner() provisioners.TypedProvisioner[environments.Kubernetes] {
+	deployFn := func(e config.Env, kubeProvider *kubernetes.Provider, fi *fakeintakeComp.Fakeintake) (*agent.KubernetesAgent, error) {
+		return otelstandalone.K8sAppDefinition(
+			e, kubeProvider, dogtelSecretsNamespace, dogtelStandaloneConfig, fi,
+			// Pre-create the K8s secret so it is mounted when the pod starts.
+			otelstandalone.WithK8sSecret(dogtelSecretsName, map[string]string{
+				"hostname": dogtelResolvedHostname,
+			}),
+			// Supply DD_HOSTNAME via ENC[] before the default downward-API entry.
+			// WithoutDefaultHostname() prevents the downward-API spec.nodeName
+			// entry from being added; Go's os.Getenv returns the first match, so
+			// the extra env vars must come first — which K8sAppDefinition guarantees.
+			otelstandalone.WithoutDefaultHostname(),
+			otelstandalone.WithExtraEnvVars(
+				&corev1.EnvVarArgs{
+					Name:  pulumi.String("DD_HOSTNAME"),
+					Value: pulumi.String("ENC[file@/etc/dogtel-secrets/hostname]"),
+				},
+				&corev1.EnvVarArgs{
+					Name:  pulumi.String("DD_SECRET_BACKEND_COMMAND"),
+					Value: pulumi.String("/readsecret_multiple_providers.sh"),
+				},
+			),
+			// Mount the K8s secret into the container.
+			otelstandalone.WithExtraVolumes(
+				&corev1.VolumeArgs{
+					Name: pulumi.String(dogtelSecretsName),
+					Secret: &corev1.SecretVolumeSourceArgs{
+						SecretName: pulumi.String(dogtelSecretsName),
+					},
+				},
+			),
+			otelstandalone.WithExtraVolumeMounts(
+				&corev1.VolumeMountArgs{
+					Name:      pulumi.String(dogtelSecretsName),
+					MountPath: pulumi.String("/etc/dogtel-secrets"),
+					ReadOnly:  pulumi.BoolPtr(true),
+				},
+			),
+		)
+	}
+
+	if isKindLocal() {
+		return provlocal.Provisioner(
+			provlocal.WithStandaloneOTelAgent(deployFn),
+		)
+	}
+	return provkindvm.Provisioner(
+		provkindvm.WithRunOptions(
+			scenkindvm.WithStandaloneOTelAgent(deployFn),
+		),
+	)
+}
+
 // TestOTelAgentDogtelSecretsStandalone is the entry point for the secrets suite.
-// It provisions a KindVM cluster in basic standalone mode (no secrets configured
-// initially). The actual secrets test redeploys via UpdateEnv after creating the
-// K8s secret, ensuring the secret exists before the agent starts.
+// It provisions a KindVM cluster and deploys the otel-agent as a standalone
+// DaemonSet pre-configured with ENC[] secrets resolution.
 func TestOTelAgentDogtelSecretsStandalone(t *testing.T) {
-	values := dogtelStandaloneHelmValues
 	t.Parallel()
 	e2e.Run(t, &dogtelSecretsTestSuite{},
-		e2e.WithProvisioner(provkindvm.Provisioner(
-			provkindvm.WithRunOptions(
-				scenkindvm.WithAgentOptions(
-					kubernetesagentparams.WithHelmValues(values),
-					kubernetesagentparams.WithOTelAgent(),
-					kubernetesagentparams.WithOTelConfig(dogtelStandaloneConfig),
-				),
-			),
-		)),
+		e2e.WithProvisioner(dogtelSecretsStandaloneProvisioner()),
 	)
 }
 
@@ -106,62 +128,17 @@ func (s *dogtelSecretsTestSuite) SetupSuite() {
 // implementation) is active in standalone mode by confirming that an ENC[file@...]
 // handle in DD_HOSTNAME is resolved to the actual value at agent startup.
 //
-// Strategy:
-//  1. Create a Kubernetes Secret containing a known hostname string.
-//  2. Redeploy the otel-agent with DD_HOSTNAME=ENC[file@...] pointing at that
-//     secret, plus DD_SECRET_BACKEND_COMMAND=/readsecret_multiple_providers.sh
-//     (the built-in multi-provider script present in the agent image).
-//  3. Confirm that traces arriving at the fake intake all report the known hostname,
-//     proving the agent resolved the ENC[] handle rather than using the raw literal.
-//     If the noop secrets impl were wired, the hostname would be the raw
-//     "ENC[file@/etc/dogtel-secrets/hostname]" string instead.
+// The K8s secret and all secrets configuration are set up in the provisioner
+// (via WithK8sSecret and WithExtraEnvVars) so they are present when the agent
+// pod starts — no UpdateEnv mid-test is required.
+//
+// If the noop secrets impl were wired, os.Getenv("DD_HOSTNAME") would return
+// the raw "ENC[file@/etc/dogtel-secrets/hostname]" literal, the agent would
+// fall back to auto-detection, and tp.Hostname would be the node name.
 func (s *dogtelSecretsTestSuite) TestDogtelSecretsResolution() {
-	// 1. Create the Kubernetes secret before redeploying so it is present when the agent starts.
-	s.applyDogtelSecret(dogtelSecretsNamespace, dogtelSecretsName, map[string][]byte{
-		"hostname": []byte(dogtelResolvedHostname),
-	})
-
-	// 2. Redeploy otel-agent with secrets backend command, ENC[] hostname, and volume mount.
-	// Start from the shared standalone values and layer the secrets-specific additions.
-	// secretsValues layers the volume mount and extra env vars on top of the shared
-	// standalone base values (dogtelStandaloneHelmValues).
-	// secretsValues overrides agents.containers.otelAgent.env, which replaces
-	// (not merges) the array from dogtelStandaloneHelmValues.  DD_OTEL_STANDALONE
-	// must be repeated here so it is not dropped by Helm's array-replacement semantics.
-	secretsValues := `
-agents:
-  volumes:
-    - name: dogtel-secrets
-      secret:
-        secretName: dogtel-secrets
-  containers:
-    otelAgent:
-      env:
-        - name: DD_OTEL_STANDALONE
-          value: 'true'
-        - name: DD_SECRET_BACKEND_COMMAND
-          value: /readsecret_multiple_providers.sh
-        - name: DD_HOSTNAME
-          value: 'ENC[file@/etc/dogtel-secrets/hostname]'
-      volumeMounts:
-        - name: dogtel-secrets
-          mountPath: /etc/dogtel-secrets
-`
-	s.UpdateEnv(provkindvm.Provisioner(
-		provkindvm.WithRunOptions(
-			scenkindvm.WithAgentOptions(
-				kubernetesagentparams.WithHelmValues(dogtelStandaloneHelmValues),
-				kubernetesagentparams.WithHelmValues(secretsValues),
-				kubernetesagentparams.WithOTelAgent(),
-				kubernetesagentparams.WithOTelConfig(dogtelStandaloneConfig),
-			),
-		),
-	))
-
 	err := s.Env().FakeIntake.Client().FlushServerAndResetAggregators()
 	require.NoError(s.T(), err)
 
-	// 3. Verify traces arrive with the resolved hostname, not the raw ENC[] literal.
 	s.T().Logf("Waiting for traces with resolved hostname %q", dogtelResolvedHostname)
 	require.EventuallyWithT(s.T(), func(c *assert.CollectT) {
 		traces, err := s.Env().FakeIntake.Client().GetTraces()
@@ -175,25 +152,4 @@ agents:
 			}
 		}
 	}, 5*time.Minute, 10*time.Second)
-}
-
-// applyDogtelSecret creates or updates a Kubernetes secret in the given namespace.
-func (s *dogtelSecretsTestSuite) applyDogtelSecret(namespace, name string, data map[string][]byte) {
-	client := s.Env().KubernetesCluster.KubernetesClient.K8sClient
-	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
-		Type: corev1.SecretTypeOpaque,
-		Data: data,
-	}
-
-	_, err := client.CoreV1().Secrets(namespace).Get(context.Background(), name, metav1.GetOptions{})
-	if err != nil {
-		_, err = client.CoreV1().Secrets(namespace).Create(context.Background(), secret, metav1.CreateOptions{})
-	} else {
-		_, err = client.CoreV1().Secrets(namespace).Update(context.Background(), secret, metav1.UpdateOptions{})
-	}
-	require.NoError(s.T(), err, "failed to create/update K8s secret %s/%s", namespace, name)
 }
