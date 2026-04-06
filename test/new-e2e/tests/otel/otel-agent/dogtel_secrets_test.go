@@ -33,6 +33,43 @@ const (
 	dogtelResolvedHostname = "dogtel-secrets-test-host"
 )
 
+// dogtelStandaloneHelmValues is the base Helm values block used by dogtel
+// secrets tests. It enables the otel-agent (DD_OTEL_STANDALONE=true) and
+// disables the core agent's competing data-collection features.
+//
+// Note: the Datadog Helm chart unconditionally includes the core agent container
+// in the DaemonSet pod — it cannot be removed via chart values. Disabling the
+// features below is the correct way to achieve a "standalone otel-agent only"
+// deployment until a future chart version supports omitting the core agent.
+const dogtelStandaloneHelmValues = `
+datadog:
+  otelCollector:
+    useStandaloneImage: false
+  # Disable core agent collection features – otel-agent handles all telemetry.
+  apm:
+    portEnabled: false
+    socketEnabled: false
+    instrumentation:
+      enabled: false
+  logs:
+    enabled: false
+    containerCollectAll: false
+    containerCollectUsingFiles: false
+  processAgent:
+    processCollection: false
+    containerCollection: false
+  helmCheck:
+    enabled: false
+  kubeStateMetricsCore:
+    enabled: false
+agents:
+  containers:
+    otelAgent:
+      env:
+        - name: DD_OTEL_STANDALONE
+          value: 'true'
+`
+
 // dogtelSecretsTestSuite verifies that secretsfx.Module() (real secrets) is wired
 // when DD_OTEL_STANDALONE=true by confirming ENC[] handle resolution end-to-end.
 type dogtelSecretsTestSuite struct {

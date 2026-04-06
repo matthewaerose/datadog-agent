@@ -39,6 +39,11 @@ type RunParams struct {
 	deployDogstatsd    bool
 	deployTestWorkload bool
 	deployArgoRollout  bool
+
+	// standaloneOTelAgent, when non-nil, deploys a standalone otel-agent DaemonSet
+	// using raw Kubernetes resources instead of the Datadog Helm chart.  The string
+	// value is the OTel collector YAML config (DD_OTEL_STANDALONE=true is set automatically).
+	standaloneOTelAgent *string
 }
 
 type RunOption = func(*RunParams) error
@@ -184,4 +189,12 @@ func WithDeployArgoRollout() RunOption {
 // WithOperatorOptions sets operator options
 func WithOperatorOptions(opts ...operatorparams.Option) RunOption {
 	return func(p *RunParams) error { p.operatorOptions = append(p.operatorOptions, opts...); return nil }
+}
+
+// WithStandaloneOTelAgent deploys the otel-agent as a standalone DaemonSet
+// (DD_OTEL_STANDALONE=true) using raw Kubernetes resources, bypassing the
+// Datadog Helm chart.  otelConfig is the OTel collector YAML; fakeintake
+// endpoints are merged in automatically at provision time.
+func WithStandaloneOTelAgent(otelConfig string) RunOption {
+	return func(p *RunParams) error { p.standaloneOTelAgent = &otelConfig; return nil }
 }

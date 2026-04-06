@@ -53,7 +53,9 @@ func TestDogtelTaggerServerRunning(s OTelTestSuite, port int) {
 	// where PORT is the port in uppercase hex (big-endian).
 	cmd := []string{
 		"/bin/sh", "-c",
-		fmt.Sprintf("grep -i ' %s ' /proc/net/tcp6 /proc/net/tcp 2>/dev/null | grep ' 0A '", portHex),
+		// /proc/net/tcp format: "XXXXXXXX:PPPP XXXXXXXX:PPPP STATE ..."
+		// The port appears as ":PPPP " (colon before, space after), not " PPPP ".
+		fmt.Sprintf("grep -i ':%s ' /proc/net/tcp6 /proc/net/tcp 2>/dev/null | grep ' 0A '", portHex),
 	}
 	s.T().Logf("Checking that tagger gRPC server is listening on port %d (0x%s)", port, portHex)
 	stdout, _, err := s.Env().KubernetesCluster.KubernetesClient.PodExec("datadog", agent.Name, "otel-agent", cmd)

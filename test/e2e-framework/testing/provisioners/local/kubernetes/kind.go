@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-agent/test/e2e-framework/components/datadog/agent/helm"
 	fakeintakeComp "github.com/DataDog/datadog-agent/test/e2e-framework/components/datadog/fakeintake"
 	"github.com/DataDog/datadog-agent/test/e2e-framework/components/datadog/kubernetesagentparams"
+	otelstandalone "github.com/DataDog/datadog-agent/test/e2e-framework/components/datadog/otel-standalone"
 	kubeComp "github.com/DataDog/datadog-agent/test/e2e-framework/components/kubernetes"
 	"github.com/DataDog/datadog-agent/test/e2e-framework/resources/local"
 	"github.com/DataDog/datadog-agent/test/e2e-framework/scenarios/aws/fakeintake"
@@ -40,6 +41,9 @@ type ProvisionerParams struct {
 	extraConfigParams   runner.ConfigMap
 	workloadAppFuncs    []kubeComp.WorkloadAppFunc
 	depWorkloadAppFuncs []kubeComp.AgentDependentWorkloadAppFunc
+	// standaloneOTelAgent, when non-nil, deploys a standalone otel-agent DaemonSet
+	// (DD_OTEL_STANDALONE=true) instead of the Datadog Helm chart.
+	standaloneOTelAgent *string
 }
 
 func newProvisionerParams() *ProvisionerParams {
@@ -122,6 +126,17 @@ func WithAgentDependentWorkloadApp(appFunc kubeComp.AgentDependentWorkloadAppFun
 	}
 }
 
+// WithStandaloneOTelAgent deploys the otel-agent as a standalone DaemonSet
+// (DD_OTEL_STANDALONE=true) using raw Kubernetes resources instead of the
+// Datadog Helm chart. otelConfig is the OTel collector YAML; fakeintake
+// endpoints are merged in automatically at provision time.
+func WithStandaloneOTelAgent(otelConfig string) ProvisionerOption {
+	return func(params *ProvisionerParams) error {
+		params.standaloneOTelAgent = &otelConfig
+		return nil
+	}
+}
+
 // Provisioner creates a new provisioner
 func Provisioner(opts ...ProvisionerOption) provisioners.TypedProvisioner[environments.Kubernetes] {
 	// We ALWAYS need to make a deep copy of `params`, as the provisioner can be called multiple times.
@@ -167,8 +182,9 @@ func KindRunFunc(ctx *pulumi.Context, env *environments.Kubernetes, params *Prov
 		return err
 	}
 
+	var fakeIntake *fakeintakeComp.Fakeintake
 	if params.fakeintakeOptions != nil {
-		fakeIntake, err := fakeintakeComp.NewLocalDockerFakeintake(&localEnv, "fakeintake")
+		fakeIntake, err = fakeintakeComp.NewLocalDockerFakeintake(&localEnv, "fakeintake")
 		if err != nil {
 			return err
 		}
@@ -185,7 +201,15 @@ func KindRunFunc(ctx *pulumi.Context, env *environments.Kubernetes, params *Prov
 		env.FakeIntake = nil
 	}
 
-	if params.agentOptions != nil {
+	if params.standaloneOTelAgent != nil {
+		standaloneAgent, err := otelstandalone.K8sAppDefinition(&localEnv, kubeProvider, "datadog", *params.standaloneOTelAgent, fakeIntake)
+		if err != nil {
+			return err
+		}
+		if err := standaloneAgent.Export(ctx, &env.Agent.KubernetesAgentOutput); err != nil {
+			return err
+		}
+	} else if params.agentOptions != nil {
 		kindClusterName := ctx.Stack()
 		helmValues := fmt.Sprintf(`
 datadog:

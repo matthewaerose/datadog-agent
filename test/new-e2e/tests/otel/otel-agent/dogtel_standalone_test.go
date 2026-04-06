@@ -8,57 +8,27 @@ package otelagent
 
 import (
 	_ "embed"
+	"strings"
 	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/DataDog/datadog-agent/comp/core/tagger/types"
-	"github.com/DataDog/datadog-agent/test/e2e-framework/components/datadog/kubernetesagentparams"
 	scenkindvm "github.com/DataDog/datadog-agent/test/e2e-framework/scenarios/aws/kindvm"
 	"github.com/DataDog/datadog-agent/test/e2e-framework/testing/e2e"
 	"github.com/DataDog/datadog-agent/test/e2e-framework/testing/environments"
+	"github.com/DataDog/datadog-agent/test/e2e-framework/testing/provisioners"
 	provkindvm "github.com/DataDog/datadog-agent/test/e2e-framework/testing/provisioners/aws/kubernetes/kindvm"
+	provlocal "github.com/DataDog/datadog-agent/test/e2e-framework/testing/provisioners/local/kubernetes"
+	"github.com/DataDog/datadog-agent/test/e2e-framework/testing/runner"
+	"github.com/DataDog/datadog-agent/test/e2e-framework/testing/runner/parameters"
 	"github.com/DataDog/datadog-agent/test/new-e2e/tests/otel/utils"
 )
 
 //go:embed config/dogtel-standalone.yml
 var dogtelStandaloneConfig string
-
-// dogtelStandaloneHelmValues is the base Helm values block used by every dogtel
-// standalone test suite. It enables the otel-agent (DD_OTEL_STANDALONE=true) and
-// disables the core agent's competing data-collection features so the otel-agent
-// is the sole telemetry source.
-//
-// Note: the Datadog Helm chart unconditionally includes the core agent container
-// in the DaemonSet pod — it cannot be removed via chart values. Disabling the
-// features below is the correct way to achieve a "standalone otel-agent only"
-// deployment until a future chart version supports omitting the core agent.
-const dogtelStandaloneHelmValues = `
-datadog:
-  otelCollector:
-    useStandaloneImage: false
-  # Disable core agent collection features – otel-agent handles all telemetry.
-  apm:
-    portEnabled: false
-    socketEnabled: false
-    instrumentation:
-      enabled: false
-  logs:
-    enabled: false
-    containerCollectAll: false
-    containerCollectUsingFiles: false
-  processAgent:
-    processCollection: false
-    containerCollection: false
-  helmCheck:
-    enabled: false
-  kubeStateMetricsCore:
-    enabled: false
-agents:
-  containers:
-    otelAgent:
-      env:
-        - name: DD_OTEL_STANDALONE
-          value: 'true'
-`
 
 // dogtelStandaloneTestSuite tests the dogtelextension running in standalone mode
 // (DD_OTEL_STANDALONE=true). In this mode the extension starts its own workloadmeta
@@ -68,23 +38,47 @@ type dogtelStandaloneTestSuite struct {
 	e2e.BaseSuite[environments.Kubernetes]
 }
 
-// TestOTelAgentDogtelExtensionStandalone is the entry point for the suite.
-// It provisions a KindVM cluster with the otel-agent sidecar, enables standalone
-// mode via DD_OTEL_STANDALONE=true, and loads the dogtel-standalone OTel config
-// which includes the dogtelextension with a tagger gRPC server on port 15555.
-func TestOTelAgentDogtelExtensionStandalone(t *testing.T) {
-	values := dogtelStandaloneHelmValues
+// dogtelStandaloneProvisioner returns the appropriate provisioner based on the
+// E2E_DEV_LOCAL / E2E_PROVISIONER config, mirroring the SSI test pattern.
+// - kind-local (or E2E_DEV_LOCAL=true): uses a local KinD cluster
+// - default: uses KinD-on-EC2 (AWS)
+func dogtelStandaloneProvisioner() provisioners.TypedProvisioner[environments.Kubernetes] {
+	if isKindLocal() {
+		return provlocal.Provisioner(
+			provlocal.WithStandaloneOTelAgent(dogtelStandaloneConfig),
+		)
+	}
+	return provkindvm.Provisioner(
+		provkindvm.WithRunOptions(
+			scenkindvm.WithStandaloneOTelAgent(dogtelStandaloneConfig),
+		),
+	)
+}
+
+// isKindLocal returns true when E2E_DEV_LOCAL=true or E2E_PROVISIONER=kind-local.
+func isKindLocal() bool {
+	devLocal, err := runner.GetProfile().ParamStore().GetBoolWithDefault(parameters.DevLocal, false)
+	if err == nil && devLocal {
+		return true
+	}
+	provisioner, err := runner.GetProfile().ParamStore().GetWithDefault(parameters.Provisioner, "")
+	return err == nil && strings.EqualFold(provisioner, "kind-local")
+}
+
+// TestDogtelStandalone is the entry point for the suite.
+// It provisions a KindVM cluster and deploys the otel-agent as a standalone
+// DaemonSet (no Helm chart, no core agent) with DD_OTEL_STANDALONE=true.
+// The dogtel-standalone OTel config enables the dogtelextension with a tagger
+// gRPC server on port 15555.
+//
+// The name is intentionally short (≤20 lowercase chars) to prevent Kubernetes
+// from truncating pod names: deployment name = "calendar-rest-go-" + lowercase(TestName).
+// Kubernetes truncates pod generateName at 57 chars, so RS names > 57 chars cause
+// pod names to omit part of the RS hash, breaking testInfraTags assertions.
+func TestDogtelStandalone(t *testing.T) {
 	t.Parallel()
 	e2e.Run(t, &dogtelStandaloneTestSuite{},
-		e2e.WithProvisioner(provkindvm.Provisioner(
-			provkindvm.WithRunOptions(
-				scenkindvm.WithAgentOptions(
-					kubernetesagentparams.WithHelmValues(values),
-					kubernetesagentparams.WithOTelAgent(),
-					kubernetesagentparams.WithOTelConfig(dogtelStandaloneConfig),
-				),
-			),
-		)),
+		e2e.WithProvisioner(dogtelStandaloneProvisioner()),
 	)
 }
 
@@ -97,6 +91,15 @@ var dogtelParams = utils.IAParams{
 func (s *dogtelStandaloneTestSuite) SetupSuite() {
 	s.BaseSuite.SetupSuite()
 	defer s.CleanupOnSetupFailure()
+	// Verify the liveness metric BEFORE TestCalendarApp flushes the aggregators.
+	// The metric is emitted once by dogtelextension.Start() at startup; it must be
+	// captured here before FlushServerAndResetAggregators() clears it.
+	s.T().Log("Waiting for dogtel liveness metric before aggregator flush")
+	require.EventuallyWithT(s.T(), func(c *assert.CollectT) {
+		metrics, err := s.Env().FakeIntake.Client().FilterMetrics(utils.DogtelLivenessMetricName)
+		assert.NoError(c, err)
+		assert.NotEmpty(c, metrics)
+	}, 5*time.Minute, 10*time.Second, "dogtel liveness metric not received after agent startup")
 	utils.TestCalendarApp(s, false, utils.CalendarService)
 }
 
@@ -105,12 +108,22 @@ func (s *dogtelStandaloneTestSuite) TestDogtelAgentInstalled() {
 	utils.TestOTelAgentInstalled(s)
 }
 
-// TestDogtelLivenessMetric verifies that the extension reports itself running by
-// emitting otel.dogtel_extension.running (value=1) to the Datadog metrics endpoint.
-// This metric is sent in Start() after the tagger server starts successfully,
-// confirming both the extension lifecycle and the serializer pipeline work end-to-end.
+// TestDogtelLivenessMetric verifies that the extension reports itself running.
+// The metric is checked in SetupSuite before the first aggregator flush.
+// If the binary emits the metric periodically (heartbeat), this test will also
+// catch a post-flush emission; otherwise it passes because SetupSuite already verified it.
 func (s *dogtelStandaloneTestSuite) TestDogtelLivenessMetric() {
-	utils.TestDogtelLivenessMetric(s)
+	metrics, err := s.Env().FakeIntake.Client().FilterMetrics(utils.DogtelLivenessMetricName)
+	require.NoError(s.T(), err)
+	if len(metrics) > 0 {
+		// Metric present (heartbeat or not yet flushed).
+		s.T().Log("Got dogtel liveness metric:", metrics[0])
+		require.NotEmpty(s.T(), metrics[0].Points)
+		assert.Equal(s.T(), 1.0, metrics[0].Points[0].Value, "otel.dogtel_extension.running should always be 1.0")
+	} else {
+		// Already flushed since SetupSuite; the metric was verified there.
+		s.T().Log("Liveness metric was verified in SetupSuite; not yet re-emitted since last flush (no heartbeat)")
+	}
 }
 
 // TestDogtelTaggerServerRunning confirms the tagger gRPC server is bound to

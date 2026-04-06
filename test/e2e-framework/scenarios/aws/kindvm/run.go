@@ -22,6 +22,7 @@ import (
 	"github.com/DataDog/datadog-agent/test/e2e-framework/components/datadog/apps/tracegen"
 	csidriver "github.com/DataDog/datadog-agent/test/e2e-framework/components/datadog/csi-driver"
 	dogstatsdstandalone "github.com/DataDog/datadog-agent/test/e2e-framework/components/datadog/dogstatsd-standalone"
+	otelstandalone "github.com/DataDog/datadog-agent/test/e2e-framework/components/datadog/otel-standalone"
 	fakeintakeComp "github.com/DataDog/datadog-agent/test/e2e-framework/components/datadog/fakeintake"
 	"github.com/DataDog/datadog-agent/test/e2e-framework/components/datadog/kubernetesagentparams"
 	"github.com/DataDog/datadog-agent/test/e2e-framework/components/datadog/operator"
@@ -211,6 +212,16 @@ func RunWithEnv(ctx *pulumi.Context, awsEnv resAws.Environment, env outputs.Kube
 		}
 	}
 
+	if params.standaloneOTelAgent != nil {
+		standaloneAgent, err := otelstandalone.K8sAppDefinition(&awsEnv, kubeProvider, "datadog", *params.standaloneOTelAgent, fakeIntake)
+		if err != nil {
+			return err
+		}
+		if err := standaloneAgent.Export(ctx, env.KubernetesAgentOutput()); err != nil {
+			return err
+		}
+	}
+
 	// Deploy testing workload
 	if params.deployTestWorkload {
 		// dogstatsd clients that report to the Agent
@@ -295,7 +306,7 @@ func RunWithEnv(ctx *pulumi.Context, awsEnv resAws.Environment, env outputs.Kube
 
 	}
 
-	if len(params.agentOptions) == 0 && len(params.operatorDDAOptions) == 0 {
+	if len(params.agentOptions) == 0 && len(params.operatorDDAOptions) == 0 && params.standaloneOTelAgent == nil {
 		env.DisableAgent()
 	}
 
