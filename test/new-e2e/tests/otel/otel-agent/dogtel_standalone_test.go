@@ -15,7 +15,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes"
+
 	"github.com/DataDog/datadog-agent/comp/core/tagger/types"
+	"github.com/DataDog/datadog-agent/test/e2e-framework/common/config"
+	"github.com/DataDog/datadog-agent/test/e2e-framework/components/datadog/agent"
+	fakeintakeComp "github.com/DataDog/datadog-agent/test/e2e-framework/components/datadog/fakeintake"
+	otelstandalone "github.com/DataDog/datadog-agent/test/e2e-framework/components/datadog/otel-standalone"
 	scenkindvm "github.com/DataDog/datadog-agent/test/e2e-framework/scenarios/aws/kindvm"
 	"github.com/DataDog/datadog-agent/test/e2e-framework/testing/e2e"
 	"github.com/DataDog/datadog-agent/test/e2e-framework/testing/environments"
@@ -43,14 +49,17 @@ type dogtelStandaloneTestSuite struct {
 // - kind-local (or E2E_DEV_LOCAL=true): uses a local KinD cluster
 // - default: uses KinD-on-EC2 (AWS)
 func dogtelStandaloneProvisioner() provisioners.TypedProvisioner[environments.Kubernetes] {
+	deployFn := func(e config.Env, kubeProvider *kubernetes.Provider, fi *fakeintakeComp.Fakeintake) (*agent.KubernetesAgent, error) {
+		return otelstandalone.K8sAppDefinition(e, kubeProvider, "datadog", dogtelStandaloneConfig, fi)
+	}
 	if isKindLocal() {
 		return provlocal.Provisioner(
-			provlocal.WithStandaloneOTelAgent(dogtelStandaloneConfig),
+			provlocal.WithStandaloneOTelAgent(deployFn),
 		)
 	}
 	return provkindvm.Provisioner(
 		provkindvm.WithRunOptions(
-			scenkindvm.WithStandaloneOTelAgent(dogtelStandaloneConfig),
+			scenkindvm.WithStandaloneOTelAgent(deployFn),
 		),
 	)
 }

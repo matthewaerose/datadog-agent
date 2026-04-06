@@ -14,10 +14,10 @@ import (
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 
 	"github.com/DataDog/datadog-agent/test/e2e-framework/common/utils"
+	"github.com/DataDog/datadog-agent/test/e2e-framework/components/datadog/agent"
 	"github.com/DataDog/datadog-agent/test/e2e-framework/components/datadog/agent/helm"
 	fakeintakeComp "github.com/DataDog/datadog-agent/test/e2e-framework/components/datadog/fakeintake"
 	"github.com/DataDog/datadog-agent/test/e2e-framework/components/datadog/kubernetesagentparams"
-	otelstandalone "github.com/DataDog/datadog-agent/test/e2e-framework/components/datadog/otel-standalone"
 	kubeComp "github.com/DataDog/datadog-agent/test/e2e-framework/components/kubernetes"
 	"github.com/DataDog/datadog-agent/test/e2e-framework/resources/local"
 	"github.com/DataDog/datadog-agent/test/e2e-framework/scenarios/aws/fakeintake"
@@ -41,9 +41,9 @@ type ProvisionerParams struct {
 	extraConfigParams   runner.ConfigMap
 	workloadAppFuncs    []kubeComp.WorkloadAppFunc
 	depWorkloadAppFuncs []kubeComp.AgentDependentWorkloadAppFunc
-	// standaloneOTelAgent, when non-nil, deploys a standalone otel-agent DaemonSet
-	// (DD_OTEL_STANDALONE=true) instead of the Datadog Helm chart.
-	standaloneOTelAgent *string
+	// standaloneAgentFunc, when non-nil, deploys a standalone agent DaemonSet
+	// instead of the Datadog Helm chart. See StandaloneAgentDeployFunc.
+	standaloneAgentFunc StandaloneAgentDeployFunc
 }
 
 func newProvisionerParams() *ProvisionerParams {
@@ -61,6 +61,11 @@ type ProvisionerOption func(*ProvisionerParams) error
 
 // PreAgentHook is executed after the Kubernetes provider is ready but before the agent is installed.
 type PreAgentHook func(e config.Env, kubeProvider *kubernetes.Provider) error
+
+// StandaloneAgentDeployFunc is a callback invoked by KindRunFunc to deploy a
+// standalone agent DaemonSet (e.g. otel-agent with DD_OTEL_STANDALONE=true)
+// after the cluster and fakeintake have been provisioned.
+type StandaloneAgentDeployFunc func(e config.Env, kubeProvider *kubernetes.Provider, fakeIntake *fakeintakeComp.Fakeintake) (*agent.KubernetesAgent, error)
 
 // WithName sets the name of the provisioner
 func WithName(name string) ProvisionerOption {
@@ -126,13 +131,12 @@ func WithAgentDependentWorkloadApp(appFunc kubeComp.AgentDependentWorkloadAppFun
 	}
 }
 
-// WithStandaloneOTelAgent deploys the otel-agent as a standalone DaemonSet
-// (DD_OTEL_STANDALONE=true) using raw Kubernetes resources instead of the
-// Datadog Helm chart. otelConfig is the OTel collector YAML; fakeintake
-// endpoints are merged in automatically at provision time.
-func WithStandaloneOTelAgent(otelConfig string) ProvisionerOption {
+// WithStandaloneOTelAgent sets a callback that deploys a standalone agent DaemonSet
+// (e.g. otel-agent with DD_OTEL_STANDALONE=true) using raw Kubernetes resources
+// instead of the Datadog Helm chart.
+func WithStandaloneOTelAgent(fn StandaloneAgentDeployFunc) ProvisionerOption {
 	return func(params *ProvisionerParams) error {
-		params.standaloneOTelAgent = &otelConfig
+		params.standaloneAgentFunc = fn
 		return nil
 	}
 }
@@ -201,8 +205,8 @@ func KindRunFunc(ctx *pulumi.Context, env *environments.Kubernetes, params *Prov
 		env.FakeIntake = nil
 	}
 
-	if params.standaloneOTelAgent != nil {
-		standaloneAgent, err := otelstandalone.K8sAppDefinition(&localEnv, kubeProvider, "datadog", *params.standaloneOTelAgent, fakeIntake)
+	if params.standaloneAgentFunc != nil {
+		standaloneAgent, err := params.standaloneAgentFunc(&localEnv, kubeProvider, fakeIntake)
 		if err != nil {
 			return err
 		}
