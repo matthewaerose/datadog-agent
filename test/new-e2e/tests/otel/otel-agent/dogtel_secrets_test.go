@@ -125,6 +125,9 @@ func (s *dogtelSecretsTestSuite) TestDogtelSecretsResolution() {
 	// Start from the shared standalone values and layer the secrets-specific additions.
 	// secretsValues layers the volume mount and extra env vars on top of the shared
 	// standalone base values (dogtelStandaloneHelmValues).
+	// secretsValues overrides agents.containers.otelAgent.env, which replaces
+	// (not merges) the array from dogtelStandaloneHelmValues.  DD_OTEL_STANDALONE
+	// must be repeated here so it is not dropped by Helm's array-replacement semantics.
 	secretsValues := `
 agents:
   volumes:
@@ -134,6 +137,8 @@ agents:
   containers:
     otelAgent:
       env:
+        - name: DD_OTEL_STANDALONE
+          value: 'true'
         - name: DD_SECRET_BACKEND_COMMAND
           value: /readsecret_multiple_providers.sh
         - name: DD_HOSTNAME
