@@ -26,6 +26,7 @@ func TestBuildModeConstants(t *testing.T) {
 		assert.False(t, cfg.AllowPrebuiltFallback)
 		assert.False(t, cfg.AllowRuntimeCompiledFallback)
 
+		assert.Equal(t, "false", os.Getenv("DD_NETWORK_CONFIG_ENABLE_CO_RE"))
 		assert.Equal(t, "false", os.Getenv("DD_NETWORK_CONFIG_ENABLE_FENTRY"))
 		assert.Equal(t, "false", os.Getenv("DD_ENABLE_EBPFLESS"))
 
@@ -38,6 +39,7 @@ func TestBuildModeConstants(t *testing.T) {
 		assert.False(t, cfg.EnableCORE)
 		assert.False(t, cfg.AllowPrebuiltFallback)
 		assert.False(t, cfg.AllowRuntimeCompiledFallback)
+		assert.Equal(t, "false", os.Getenv("DD_NETWORK_CONFIG_ENABLE_CO_RE"))
 		assert.Equal(t, "false", os.Getenv("DD_NETWORK_CONFIG_ENABLE_FENTRY"))
 		assert.Equal(t, "false", os.Getenv("DD_ENABLE_EBPFLESS"))
 
@@ -50,6 +52,7 @@ func TestBuildModeConstants(t *testing.T) {
 		assert.True(t, cfg.EnableCORE)
 		assert.False(t, cfg.AllowPrebuiltFallback)
 		assert.False(t, cfg.AllowRuntimeCompiledFallback)
+		assert.Equal(t, "true", os.Getenv("DD_NETWORK_CONFIG_ENABLE_CO_RE"))
 		assert.Equal(t, "false", os.Getenv("DD_NETWORK_CONFIG_ENABLE_FENTRY"))
 		assert.Equal(t, "false", os.Getenv("DD_ENABLE_EBPFLESS"))
 
@@ -62,6 +65,7 @@ func TestBuildModeConstants(t *testing.T) {
 		assert.True(t, cfg.EnableCORE)
 		assert.False(t, cfg.AllowPrebuiltFallback)
 		assert.False(t, cfg.AllowRuntimeCompiledFallback)
+		assert.Equal(t, "false", os.Getenv("DD_NETWORK_CONFIG_ENABLE_CO_RE"))
 		assert.Equal(t, "true", os.Getenv("DD_NETWORK_CONFIG_ENABLE_FENTRY"))
 		assert.Equal(t, "false", os.Getenv("DD_ENABLE_EBPFLESS"))
 
@@ -74,6 +78,7 @@ func TestBuildModeConstants(t *testing.T) {
 		assert.False(t, cfg.EnableCORE)
 		assert.False(t, cfg.AllowPrebuiltFallback)
 		assert.False(t, cfg.AllowRuntimeCompiledFallback)
+		assert.Equal(t, "false", os.Getenv("DD_NETWORK_CONFIG_ENABLE_CO_RE"))
 		assert.Equal(t, "false", os.Getenv("DD_NETWORK_CONFIG_ENABLE_FENTRY"))
 		assert.Equal(t, "true", os.Getenv("DD_ENABLE_EBPFLESS"))
 

@@ -136,6 +136,12 @@ func adjustNetwork(cfg model.Config) {
 		}...,
 		)
 	}
+	if !cfg.GetBool(spNS("enable_co_re")) && cfg.GetBool(netNS("enable_co_re")) {
+		disableConfigs = append(disableConfigs, []struct{ key, reason string }{
+			{netNS("enable_co_re"), "not supported when CO-RE is disabled in system-probe"},
+		}...,
+		)
+	}
 
 	for _, c := range disableConfigs {
 		if cfg.GetBool(c.key) {

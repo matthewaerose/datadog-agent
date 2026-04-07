@@ -16,6 +16,7 @@ import (
 
 	ddebpf "github.com/DataDog/datadog-agent/pkg/ebpf"
 	"github.com/DataDog/datadog-agent/pkg/ebpf/bytecode"
+	"github.com/DataDog/datadog-agent/pkg/ebpf/ebpftest"
 	"github.com/DataDog/datadog-agent/pkg/ebpf/perf"
 	"github.com/DataDog/datadog-agent/pkg/ebpf/prebuilt"
 	"github.com/DataDog/datadog-agent/pkg/network/config"
@@ -270,6 +271,7 @@ func TestCORETracerSupported(t *testing.T) {
 
 	cfg := config.New()
 	cfg.EnableCORE = true
+	cfg.EnableCORETracer = true
 	cfg.AllowRuntimeCompiledFallback = false
 	_, _, _, err = LoadTracer(cfg, manager.Options{}, nil)
 	assert.False(t, prebuiltCalled)
@@ -303,35 +305,11 @@ func TestDefaultKprobeMaxActiveSet(t *testing.T) {
 	}
 	t.Cleanup(func() { tracerLoaderFromAsset = prevLoader })
 
-	t.Run("CO-RE", func(t *testing.T) {
-		cfg := config.New()
-		cfg.EnableCORE = true
-		cfg.EnableRuntimeCompiler = false
-		cfg.AllowRuntimeCompiledFallback = false
-		cfg.AllowPrebuiltFallback = false
-		_, _, _, err := LoadTracer(cfg, manager.Options{DefaultKProbeMaxActive: 128}, nil)
-		require.NoError(t, err)
-	})
-
-	t.Run("prebuilt", func(t *testing.T) {
-		if prebuilt.IsDeprecated() {
+	ebpftest.TestBuildModes(t, []ebpftest.BuildMode{ebpftest.CORE, ebpftest.Prebuilt, ebpftest.RuntimeCompiled}, "", func(t *testing.T) {
+		if ebpftest.GetBuildMode() == ebpftest.Prebuilt && prebuilt.IsDeprecated() {
 			t.Skip("prebuilt not supported on this platform")
 		}
 		cfg := config.New()
-		cfg.EnableCORE = false
-		cfg.EnableRuntimeCompiler = false
-		cfg.AllowRuntimeCompiledFallback = false
-		cfg.AllowPrebuiltFallback = false
-		_, _, _, err := LoadTracer(cfg, manager.Options{DefaultKProbeMaxActive: 128}, nil)
-		require.NoError(t, err)
-	})
-
-	t.Run("runtime_compiled", func(t *testing.T) {
-		cfg := config.New()
-		cfg.EnableCORE = false
-		cfg.AllowPrebuiltFallback = false
-		cfg.AllowRuntimeCompiledFallback = false
-		cfg.EnableRuntimeCompiler = true
 		_, _, _, err := LoadTracer(cfg, manager.Options{DefaultKProbeMaxActive: 128}, nil)
 		require.NoError(t, err)
 	})

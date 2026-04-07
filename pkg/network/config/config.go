@@ -205,6 +205,9 @@ type Config struct {
 	// EnableFentry enables the experimental fentry tracer (disabled by default)
 	EnableFentry bool
 
+	// EnableCORE enables the CO-RE version of the tracer
+	EnableCORETracer bool
+
 	// CustomBatchingEnabled enables the use of custom batching for eBPF perf events with perf buffers
 	CustomBatchingEnabled bool
 
@@ -301,9 +304,10 @@ func New() *Config {
 
 		EnableNPMConnectionRollup: cfg.GetBool(sysconfig.FullKeyPath(netNS, "enable_connection_rollup")),
 
-		EnableEbpfless: cfg.GetBool(sysconfig.FullKeyPath(netNS, "enable_ebpfless")),
-		EnableFentry:   cfg.GetBool(sysconfig.FullKeyPath(netNS, "enable_fentry")),
-		EnableSKTracer: cfg.GetBool(sysconfig.FullKeyPath(netNS, "enable_sk_tracer")),
+		EnableCORETracer: cfg.GetBool(sysconfig.FullKeyPath(netNS, "enable_co_re")),
+		EnableEbpfless:   cfg.GetBool(sysconfig.FullKeyPath(netNS, "enable_ebpfless")),
+		EnableFentry:     cfg.GetBool(sysconfig.FullKeyPath(netNS, "enable_fentry")),
+		EnableSKTracer:   cfg.GetBool(sysconfig.FullKeyPath(netNS, "enable_sk_tracer")),
 
 		ExpectedTagsDuration: cfg.GetDuration(sysconfig.FullKeyPath(spNS, "expected_tags_duration")),
 
