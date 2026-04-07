@@ -9,7 +9,6 @@ package spec
 import (
 	"embed"
 	"fmt"
-
 	"go.yaml.in/yaml/v2"
 )
 
@@ -19,7 +18,7 @@ const (
 	tagsSpecFile          = "tags.yaml"
 )
 
-//go:embed gpu_metrics.yaml architectures.yaml
+//go:embed gpu_metrics.yaml architectures.yaml tags.yaml
 var embeddedSpecs embed.FS
 
 // DeviceMode identifies the GPU device operating mode in the spec.
@@ -145,19 +144,14 @@ func LoadMetricsSpec() (*MetricsSpec, error) {
 
 // LoadTagsSpec loads the canonical GPU tags specification file.
 func LoadTagsSpec() (*TagsSpec, error) {
-	path, err := getSpecPath(tagsSpecFile)
+	data, err := embeddedSpecs.ReadFile(tagsSpecFile)
 	if err != nil {
-		return nil, fmt.Errorf("resolve tags spec path: %w", err)
-	}
-
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("read tags spec %q: %w", path, err)
+		return nil, fmt.Errorf("read tags spec %q: %w", tagsSpecFile, err)
 	}
 
 	var parsed TagsSpec
 	if err := yaml.Unmarshal(data, &parsed); err != nil {
-		return nil, fmt.Errorf("unmarshal tags spec %q: %w", path, err)
+		return nil, fmt.Errorf("unmarshal tags spec %q: %w", tagsSpecFile, err)
 	}
 
 	return &parsed, nil
