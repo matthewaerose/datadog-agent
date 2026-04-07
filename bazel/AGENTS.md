@@ -118,7 +118,7 @@ Usage pattern in `MODULE.bazel`:
 
 ```python
 go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
-go_deps.from_file(go_mod = "//:go.mod")
+go_deps.from_file(go_work = "//:go.work")
 use_repo(go_deps, "com_github_some_dep", ...)
 ```
 
@@ -139,7 +139,8 @@ use_repo(go_deps, "com_github_some_dep", ...)
 ## Repository rules
 
 Repository rules (`repository_rule`) generate external repos by running arbitrary logic at fetch time. They are
-invoked from module extensions (never directly from MODULE.bazel in Bazel 9).
+invoked either from a module extension or directly from `MODULE.bazel` via `use_repo_rule()` (the lighter-weight
+option when no tag-based configuration is needed).
 
 ```python
 my_repo = repository_rule(
@@ -945,3 +946,8 @@ Use `query` / `cquery` to investigate build size regressions before profiling ex
 - Many new packages loaded → dependency graph growth (check `deps()` for new transitive deps).
 - Many new targets configured → diamond dependencies or platform proliferation.
 - Many new actions created → check `aquery --output=summary`.
+
+## See also
+
+- [Rust in the Datadog Agent](../docs/public/guidelines/languages/RUST.md)
+- [eBPF Core Checks](../pkg/collector/corechecks/ebpf/AGENTS.md)
