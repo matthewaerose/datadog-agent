@@ -24,6 +24,11 @@ func (d *dispatcher) getAllConfigs() ([]integration.Config, error) {
 }
 
 func (d *dispatcher) getState(scrub bool) (types.StateResponse, error) {
+	// Collect fresh runner stats before building the state response.
+	// This ensures stats are available even if the periodic collection
+	// hasn't run yet. updateRunnersStats takes its own lock, so call before RLock.
+	d.updateRunnersStats()
+
 	d.store.RLock()
 	defer d.store.RUnlock()
 
@@ -51,9 +56,19 @@ func (d *dispatcher) getState(scrub bool) (types.StateResponse, error) {
 			configs = scrubbedConf
 		}
 
+		// Copy runner stats for this node (may be empty if stats haven't been collected yet)
+		var stats types.CLCRunnersStats
+		if len(node.clcRunnerStats) > 0 {
+			stats = make(types.CLCRunnersStats, len(node.clcRunnerStats))
+			for k, v := range node.clcRunnerStats {
+				stats[k] = v
+			}
+		}
+
 		n := types.StateNodeResponse{
 			Name:    node.name,
 			Configs: configs,
+			Stats:   stats,
 		}
 		response.Nodes = append(response.Nodes, n)
 	}

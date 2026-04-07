@@ -12,14 +12,18 @@ import (
 	"net/url"
 	"slices"
 	"sort"
+	"strings"
 	"text/tabwriter"
+	"time"
 
 	"github.com/fatih/color"
 
+	"github.com/DataDog/datadog-agent/comp/core/autodiscovery/integration"
 	"github.com/DataDog/datadog-agent/comp/core/autodiscovery/providers/names"
 	ipc "github.com/DataDog/datadog-agent/comp/core/ipc/def"
 	ipchttp "github.com/DataDog/datadog-agent/comp/core/ipc/httphelpers"
 	"github.com/DataDog/datadog-agent/pkg/clusteragent/clusterchecks/types"
+	checkid "github.com/DataDog/datadog-agent/pkg/collector/check/id"
 	pkgconfigsetup "github.com/DataDog/datadog-agent/pkg/config/setup"
 	"github.com/DataDog/datadog-agent/pkg/flare"
 )
@@ -92,7 +96,7 @@ func GetClusterChecks(w io.Writer, checkName string, c ipc.HTTPClient) error {
 	}
 	table.Flush()
 
-	// Print per-node configurations
+	// Print per-node configurations with execution status
 	for _, node := range cr.Nodes {
 		if len(node.Configs) == 0 {
 			continue
@@ -100,10 +104,95 @@ func GetClusterChecks(w io.Writer, checkName string, c ipc.HTTPClient) error {
 		fmt.Fprintf(w, "\n===== Checks on %s =====\n", color.HiMagentaString(node.Name))
 		for _, c := range node.Configs {
 			flare.PrintClusterCheckConfig(w, c, checkName)
+			printCheckExecutionStatus(w, c, node.Stats, checkName)
 		}
 	}
 
 	return nil
+}
+
+// printCheckExecutionStatus prints the execution status for each instance of a config,
+// matching the node agent `agent status collector` output format.
+func printCheckExecutionStatus(w io.Writer, c integration.Config, stats types.CLCRunnersStats, checkName string) {
+	if checkName != "" && c.Name != checkName {
+		return
+	}
+	if len(stats) == 0 {
+		return
+	}
+
+	configDigest := c.FastDigest()
+	for _, inst := range c.Instances {
+		id := string(checkid.BuildID(c.Name, configDigest, inst, c.InitConfig))
+		s, found := stats[id]
+		if !found {
+			// Check IDs can differ between DCA and runner due to secret decryption.
+			// Fall back to matching by check name prefix.
+			for statsID, statEntry := range stats {
+				if strings.HasPrefix(statsID, c.Name+":") {
+					s = statEntry
+					found = true
+					id = statsID
+					break
+				}
+			}
+			if !found {
+				continue
+			}
+		}
+
+		// Status indicator
+		statusStr := color.GreenString("OK")
+		if s.LastExecFailed {
+			statusStr = color.RedString("ERROR")
+		}
+		fmt.Fprintf(w, "  Instance ID: %s [%s]\n", id, statusStr)
+
+		// Run counts
+		fmt.Fprintf(w, "  Total Runs: %d\n", s.TotalRuns)
+
+		// Metric samples
+		fmt.Fprintf(w, "  Metric Samples: Last Run: %d, Total: %d\n", s.MetricSamples, s.TotalMetricSamples)
+
+		// Events
+		fmt.Fprintf(w, "  Events: Last Run: %d, Total: %d\n", s.Events, s.TotalEvents)
+
+		// Service checks
+		fmt.Fprintf(w, "  Service Checks: Last Run: %d, Total: %d\n", s.ServiceChecks, s.TotalServiceChecks)
+
+		// Average execution time
+		fmt.Fprintf(w, "  Average Execution Time : %s\n", formatExecutionTime(s.AverageExecutionTime))
+
+		// Last execution date
+		if s.LastExecutionDate > 0 {
+			t := time.UnixMilli(s.LastExecutionDate).UTC()
+			fmt.Fprintf(w, "  Last Execution Date : %s\n", t.Format("2006-01-02 15:04:05 MST"))
+		}
+
+		// Last successful execution date
+		if s.LastSuccessDate > 0 {
+			t := time.Unix(s.LastSuccessDate, 0).UTC()
+			fmt.Fprintf(w, "  Last Successful Execution Date : %s\n", t.Format("2006-01-02 15:04:05 MST"))
+		}
+
+		// Last error
+		if s.LastError != "" {
+			fmt.Fprintf(w, "  %s: %s\n", color.RedString("Last Error"), s.LastError)
+		}
+
+		fmt.Fprintln(w, "")
+	}
+}
+
+// formatExecutionTime formats milliseconds into a human-readable duration string
+func formatExecutionTime(ms int) string {
+	if ms == 0 {
+		return "0s"
+	}
+	if ms < 1000 {
+		return fmt.Sprintf("%dms", ms)
+	}
+	return fmt.Sprintf("%.3fs", float64(ms)/1000.0)
 }
 
 // GetEndpointsChecks dumps the endpointschecks dispatching state to the writer
