@@ -213,6 +213,7 @@ func runFallbackTests(t *testing.T, desc string, coreErr, rcErr bool, tests []st
 	for _, te := range tests {
 		t.Run(desc, func(t *testing.T) {
 			cfg.EnableCORE = te.enableCORE
+			cfg.EnableCORETracer = te.enableCORE
 			cfg.AllowRuntimeCompiledFallback = te.allowRCFallback
 			cfg.EnableRuntimeCompiler = te.enableRC
 			cfg.AllowPrebuiltFallback = te.allowPrebuiltFallback
