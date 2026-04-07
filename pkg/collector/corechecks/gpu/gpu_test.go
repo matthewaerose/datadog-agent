@@ -1136,13 +1136,17 @@ func validateMetricTagsAgainstSpec(t *testing.T, tagsSpec *gpuspec.TagsSpec, met
 		// check that no unknown tags are present, and that all known tags have non-empty values. If the tag should have
 		// a specific value, check that the value is as expected.
 		for key, values := range tagsByKey {
-			_, allowed := requiredTags[key]
+			tagSpec, allowed := requiredTags[key]
 			require.True(t, allowed, "metric %s has unknown tag key %s", metricName, key)
 
 			for _, value := range values {
 				require.NotEmpty(t, value, "metric %s has empty value for tag %s", metricName, key)
 				if expectedValue, ok := knownTagValues[key]; ok {
 					require.Equal(t, expectedValue, value, "metric %s has unexpected value for tag %s", metricName, key)
+				}
+
+				if tagSpec.Regex != nil {
+					require.Regexp(t, *tagSpec.Regex, value, "metric %s has unexpected value for tag %s", metricName, key)
 				}
 			}
 		}

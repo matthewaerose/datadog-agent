@@ -9,6 +9,7 @@ package spec
 import (
 	"embed"
 	"fmt"
+	"regexp"
 	"go.yaml.in/yaml/v2"
 )
 
@@ -44,7 +45,31 @@ type TagsSpec struct {
 
 // TagSpec defines validation metadata for a reusable tag.
 type TagSpec struct {
-	Regex string `yaml:"regex,omitempty"`
+	Regex *regexp.Regexp `yaml:"-"`
+}
+
+// UnmarshalYAML compiles the optional regex when the tag spec is decoded.
+func (s *TagSpec) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var raw struct {
+		Regex string `yaml:"regex,omitempty"`
+	}
+
+	if err := unmarshal(&raw); err != nil {
+		return fmt.Errorf("unmarshal tag spec: %w", err)
+	}
+
+	if raw.Regex == "" {
+		s.Regex = nil
+		return nil
+	}
+
+	compiled, err := regexp.Compile(raw.Regex)
+	if err != nil {
+		return fmt.Errorf("compile tag regex %q: %w", raw.Regex, err)
+	}
+
+	s.Regex = compiled
+	return nil
 }
 
 // TagsetSpec defines a reusable tagset.
