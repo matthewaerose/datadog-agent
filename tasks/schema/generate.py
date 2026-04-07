@@ -63,9 +63,9 @@ def generate(ctx, agent_bin, output_dir=SCHEMA_DIR):
     core_schema, sysprobe_schema = fix_schema(core_schema, sysprobe_schema)
 
     with open(core, "w") as f:
-        yaml.safe_dump(core_schema, f)
+        yaml.safe_dump(core_schema, f, sort_keys=False)
     with open(sysprobe, "w") as f:
-        yaml.safe_dump(sysprobe_schema, f)
+        yaml.safe_dump(sysprobe_schema, f, sort_keys=False)
 
     print("Schema generation complete. Output files:")
     print(f"  {core}")
