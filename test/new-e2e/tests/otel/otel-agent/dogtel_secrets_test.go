@@ -7,6 +7,7 @@
 package otelagent
 
 import (
+	_ "embed"
 	"testing"
 	"time"
 
@@ -39,6 +40,17 @@ const (
 	dogtelResolvedHostname = "dogtel-secrets-test-host"
 )
 
+// dogtelSecretsConfig is the OTel config for the secrets test.  It uses
+// allow_hostname_override: true on the infraattributes processor so that the
+// processor injects "datadog.host.name" (set to the agent's resolved hostname)
+// into span resource attributes.  This attribute takes priority over k8s.node.name
+// in the trace-agent hostname detection, making it possible to verify that an
+// ENC[] handle in DD_HOSTNAME was actually resolved (tp.Hostname == resolved value)
+// rather than being silently overridden by the K8s node name.
+//
+//go:embed config/dogtel-secrets.yml
+var dogtelSecretsConfig string
+
 // dogtelSecretsTestSuite verifies that secretsfx.Module() (real secrets) is wired
 // when DD_OTEL_STANDALONE=true by confirming ENC[] handle resolution end-to-end.
 type dogtelSecretsTestSuite struct {
@@ -57,7 +69,7 @@ type dogtelSecretsTestSuite struct {
 func dogtelSecretsStandaloneProvisioner() provisioners.TypedProvisioner[environments.Kubernetes] {
 	deployFn := func(e config.Env, kubeProvider *kubernetes.Provider, fi *fakeintakeComp.Fakeintake) (*agent.KubernetesAgent, error) {
 		return otelstandalone.K8sAppDefinition(
-			e, kubeProvider, dogtelSecretsNamespace, dogtelStandaloneConfig, fi,
+			e, kubeProvider, dogtelSecretsNamespace, dogtelSecretsConfig, fi,
 			// Pre-create the K8s secret so it is mounted when the pod starts.
 			otelstandalone.WithK8sSecret(dogtelSecretsName, map[string]string{
 				"hostname": dogtelResolvedHostname,
@@ -132,9 +144,15 @@ func (s *dogtelSecretsTestSuite) SetupSuite() {
 // (via WithK8sSecret and WithExtraEnvVars) so they are present when the agent
 // pod starts — no UpdateEnv mid-test is required.
 //
-// If the noop secrets impl were wired, os.Getenv("DD_HOSTNAME") would return
-// the raw "ENC[file@/etc/dogtel-secrets/hostname]" literal, the agent would
-// fall back to auto-detection, and tp.Hostname would be the node name.
+// The test config (dogtel-secrets.yml) uses allow_hostname_override: true on
+// the infraattributes processor.  This causes the processor to inject
+// "datadog.host.name" (from the agent's resolved hostname component) into span
+// resource attributes.  That attribute takes priority over k8s.node.name in the
+// trace-agent hostname detection, so tp.Hostname carries the value from
+// DD_HOSTNAME after ENC[] resolution.  Without allow_hostname_override, k8s.node.name
+// (added by infraattributes) would always win and the resolved DD_HOSTNAME would
+// be invisible in traces, making it impossible to distinguish secrets-resolved from
+// noop cases in a K8s environment.
 func (s *dogtelSecretsTestSuite) TestDogtelSecretsResolution() {
 	err := s.Env().FakeIntake.Client().FlushServerAndResetAggregators()
 	require.NoError(s.T(), err)
