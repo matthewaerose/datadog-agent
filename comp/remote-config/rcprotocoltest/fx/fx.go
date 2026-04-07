@@ -7,6 +7,9 @@
 package fx
 
 import (
+	uberfx "go.uber.org/fx"
+
+	rcprotocoltest "github.com/DataDog/datadog-agent/comp/remote-config/rcprotocoltest/def"
 	rcprotocoltestimpl "github.com/DataDog/datadog-agent/comp/remote-config/rcprotocoltest/impl"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 )
@@ -15,5 +18,10 @@ import (
 func Module() fxutil.Module {
 	return fxutil.Component(
 		fxutil.ProvideComponentConstructor(rcprotocoltestimpl.New),
+		// rcprotocoltest.Component has no public methods, so nothing in the FX
+		// graph depends on it. This invoke forces instantiation so that the
+		// lifecycle hooks (Start/Stop) are always registered when this module
+		// is included.
+		uberfx.Invoke(func(_ rcprotocoltest.Component) {}),
 	)
 }
