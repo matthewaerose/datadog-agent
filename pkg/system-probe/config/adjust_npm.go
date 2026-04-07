@@ -26,6 +26,7 @@ const (
 
 func adjustNetwork(cfg model.Config) {
 	ebpflessEnabled := cfg.GetBool(netNS("enable_ebpfless"))
+	skEnabled := cfg.GetBool(netNS("enable_sk_tracer"))
 
 	deprecateInt(cfg, spNS("closed_connection_flush_threshold"), netNS("closed_connection_flush_threshold"))
 	deprecateInt(cfg, spNS("closed_channel_size"), netNS("closed_channel_size"))
@@ -124,6 +125,15 @@ func adjustNetwork(cfg model.Config) {
 		disableConfigs = append(disableConfigs, []struct{ key, reason string }{
 			{netNS("enable_protocol_classification"), notSupportedEbpfless},
 			{evNS("network_process", "enabled"), notSupportedEbpfless}}...,
+		)
+	}
+	if skEnabled {
+		const notSupportedSK = "not supported when sk tracer is enabled"
+		disableConfigs = append(disableConfigs, []struct{ key, reason string }{
+			{netNS("enable_protocol_classification"), notSupportedSK},
+			{netNS("enable_cert_collection"), notSupportedSK},
+			{smNS("enabled"), notSupportedSK},
+		}...,
 		)
 	}
 
