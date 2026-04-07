@@ -4363,16 +4363,12 @@ func populateEventExpressions(
 		if expr.captureExprName != "" {
 			name = expr.captureExprName
 		}
-		dictIdx := -1
-		if v != nil {
-			dictIdx = v.DictIndex
-		}
 		expressions = append(expressions, &ir.RootExpression{
 			Name:       name,
 			Offset:     uint32(0),
 			Kind:       expr.exprKind,
 			Expression: resolvedExpr,
-			DictIndex:  dictIdx,
+			DictIndex:  v.DictIndex,
 		})
 	}
 	presenceBitsetSize := uint32((2*len(expressions) + 7) / 8)
@@ -4597,7 +4593,7 @@ func pickInjectionPoint(
 				NoReturnReason:      ir.NoReturnReasonInlined,
 			})
 		} else {
-			call, err := pickCallInjectionPoint(arch, addr, frameless, lines)
+			call, err := pickCallInjectionPoint(arch, addr, frameless, lines, body)
 			if err != nil {
 				return nil, nil, ir.Issue{}, err
 			}
@@ -4631,8 +4627,15 @@ func pickInjectionPoint(
 				hasAssociatedReturn = false
 				noReturnReason = ir.NoReturnReasonNoBody
 				returnLocations = returnLocations[:0]
-			} else {
+			} else if len(returnLocations) > 0 {
 				hasAssociatedReturn = true
+			} else {
+				// Disassembly didn't find any return locations (e.g. the
+				// epilogue pattern wasn't recognized). Treat the same as
+				// no-body: emit the entry event immediately without waiting
+				// for a return that will never arrive.
+				hasAssociatedReturn = false
+				noReturnReason = ir.NoReturnReasonNoBody
 			}
 
 			buf = append(buf, ir.InjectionPoint{
@@ -4737,17 +4740,36 @@ type injectionPoint struct {
 	topPCOffset int8
 }
 
-func pickCallInjectionPoint(arch object.Architecture, addr uint64, frameless bool, loc lineData) (injectionPoint, error) {
+func pickCallInjectionPoint(arch object.Architecture, addr uint64, frameless bool, loc lineData, body []byte) (injectionPoint, error) {
 	switch arch {
 	case "amd64":
 		pc := loc.prologueEnd
 		if pc == 0 {
 			pc = addr
 		}
+		// For non-frameless functions, the PrologueEnd marker may land on MOV
+		// RSP,RBP rather than after it. This happens when the function sets up
+		// a frame pointer but doesn't allocate local stack space (no SUB RSP
+		// follows). Probing before MOV RSP,RBP executes means RBP still holds
+		// the caller's frame pointer, causing a stack-depth mismatch between
+		// entry and return probes. Advance past it so RBP is established when
+		// the probe fires.
+		var topPCOffset int8
+		if !frameless {
+			off := pc - addr
+			if off < uint64(len(body)) {
+				inst, err := x86asm.Decode(body[off:], 64)
+				if err == nil && inst.Op == x86asm.MOV &&
+					inst.Args[0] == x86asm.RBP && inst.Args[1] == x86asm.RSP {
+					topPCOffset = -int8(inst.Len)
+					pc += uint64(inst.Len)
+				}
+			}
+		}
 		return injectionPoint{
 			frameless:   frameless,
 			pc:          pc,
-			topPCOffset: 0,
+			topPCOffset: topPCOffset,
 		}, nil
 	case "arm64":
 		// This is a heuristics to work around the fact that the prologue end
@@ -4833,13 +4855,17 @@ func disassembleAmd64Function(
 			validInjectionPC = true
 		}
 		if !frameless &&
-			instruction.Op == x86asm.POP && instruction.Args[0] == x86asm.RBP &&
-			// Sometimes we see negative subtractions instead of additions,
-			// but at the time of writing, not sure why.
-			((prevInst.Op == x86asm.ADD || prevInst.Op == x86asm.SUB) &&
-				prevInst.Args[0] == x86asm.RSP) {
+			instruction.Op == x86asm.POP && instruction.Args[0] == x86asm.RBP {
 
-			epilogueStart := addr + uint64(offset) - uint64(prevInst.Len)
+			// The epilogue starts at the stack adjustment if present,
+			// otherwise at the POP RBP itself (functions that set up a
+			// frame pointer but don't allocate local stack space).
+			epilogueStart := addr + uint64(offset)
+			if (prevInst.Op == x86asm.ADD || prevInst.Op == x86asm.SUB) &&
+				prevInst.Args[0] == x86asm.RSP {
+				epilogueStart -= uint64(prevInst.Len)
+			}
+
 			maybeRet, err := x86asm.Decode(body[offset+instruction.Len:], 64)
 			if err != nil {
 				offset := offset + instruction.Len
