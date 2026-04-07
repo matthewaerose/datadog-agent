@@ -1245,7 +1245,6 @@ func (s *TracerSuite) TestSelfConnect() {
 
 	t.Logf("port is %d", port)
 
-	buildmode := ebpftest.GetBuildMode()
 	require.EventuallyWithT(t, func(collect *assert.CollectT) {
 		allConnections, cleanup := getConnections(collect, tr)
 		defer cleanup()
@@ -1254,14 +1253,7 @@ func (s *TracerSuite) TestSelfConnect() {
 		})
 
 		t.Logf("connections: %v", conns)
-		if buildmode == ebpftest.SK {
-			// SK tracer will have one connection but capture all the sent/recv
-			require.Len(collect, conns, 1)
-			assert.Equal(collect, 3, int(conns[0].Monotonic.SentBytes))
-			assert.Equal(collect, 3, int(conns[0].Monotonic.RecvBytes))
-		} else {
-			require.Len(collect, conns, 2, "expected number of tcp connections")
-		}
+		require.Len(collect, conns, 2, "expected number of tcp connections")
 	}, 5*time.Second, 100*time.Millisecond, "could not find connection(s)")
 }
 
