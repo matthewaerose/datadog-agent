@@ -104,7 +104,9 @@ func GetClusterChecks(w io.Writer, checkName string, c ipc.HTTPClient) error {
 		fmt.Fprintf(w, "\n===== Checks on %s =====\n", color.HiMagentaString(node.Name))
 		for _, c := range node.Configs {
 			flare.PrintClusterCheckConfig(w, c, checkName)
-			printCheckExecutionStatus(w, c, node.Stats, checkName)
+			if len(node.Stats) > 0 {
+				printCheckExecutionStatus(w, c, node.Stats, checkName)
+			}
 		}
 	}
 
@@ -126,19 +128,21 @@ func printCheckExecutionStatus(w io.Writer, c integration.Config, stats types.CL
 		id := string(checkid.BuildID(c.Name, configDigest, inst, c.InitConfig))
 		s, found := stats[id]
 		if !found {
-			// Check IDs can differ between DCA and runner due to secret decryption.
-			// Fall back to matching by check name prefix.
+			// Check IDs can differ between DCA and runner due to secret decryption
+			// (the hash changes but the checkname:instancename prefix stays the same).
+			// Strip the trailing hash and match by prefix.
+			idPrefix := id[:strings.LastIndex(id, ":")+1]
 			for statsID, statEntry := range stats {
-				if strings.HasPrefix(statsID, c.Name+":") {
+				if strings.HasPrefix(statsID, idPrefix) {
 					s = statEntry
 					found = true
 					id = statsID
 					break
 				}
 			}
-			if !found {
-				continue
-			}
+		}
+		if !found {
+			continue
 		}
 
 		// Status indicator
@@ -184,15 +188,10 @@ func printCheckExecutionStatus(w io.Writer, c integration.Config, stats types.CL
 	}
 }
 
-// formatExecutionTime formats milliseconds into a human-readable duration string
+// formatExecutionTime formats milliseconds into a human-readable duration string,
+// matching the node agent status output format (uses time.Duration.String()).
 func formatExecutionTime(ms int) string {
-	if ms == 0 {
-		return "0s"
-	}
-	if ms < 1000 {
-		return fmt.Sprintf("%dms", ms)
-	}
-	return fmt.Sprintf("%.3fs", float64(ms)/1000.0)
+	return (time.Duration(ms) * time.Millisecond).String()
 }
 
 // GetEndpointsChecks dumps the endpointschecks dispatching state to the writer
