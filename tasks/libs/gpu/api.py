@@ -231,13 +231,13 @@ def fetch_metric_all_tags_with_values(
         try:
             response = api.list_tags_by_metric_name(
                 metric_name=metric_name,
-                filter_match=tag,
-                filter_include_tag_values=True,
-                page_limit=1000,
-                window_seconds=window_seconds,
-                filter_tags=metric_scope_filter,
-                filter_allow_partial=True,
-            )
+                filter_match=tag,  # type: ignore
+                filter_include_tag_values=True,  # type: ignore
+                page_limit=1000,  # type: ignore
+                window_seconds=window_seconds,  # type: ignore
+                filter_tags=metric_scope_filter,  # type: ignore
+                filter_allow_partial=True,  # type: ignore
+            )  # type: ignore
         except Exception as e:
             raise ValueError(f"Could not fetch tag {tag} for {metric_name}: {e}") from e
 
