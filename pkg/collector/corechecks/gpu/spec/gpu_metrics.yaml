@@ -107,6 +107,8 @@ metrics:
   clock.throttle_reasons.applications_clocks_setting:
     tagsets:
       - device
+    validator:
+      values: [0, 1]
     support:
       unsupported_architectures:
         - fermi
@@ -117,6 +119,8 @@ metrics:
   clock.throttle_reasons.display_clock_setting:
     tagsets:
       - device
+    validator:
+      values: [0, 1]
     support:
       unsupported_architectures:
         - fermi
@@ -127,6 +131,8 @@ metrics:
   clock.throttle_reasons.gpu_idle:
     tagsets:
       - device
+    validator:
+      values: [0, 1]
     support:
       unsupported_architectures:
         - fermi
@@ -137,6 +143,8 @@ metrics:
   clock.throttle_reasons.none:
     tagsets:
       - device
+    validator:
+      values: [0, 1]
     support:
       unsupported_architectures:
         - fermi
@@ -147,6 +155,8 @@ metrics:
   clock.throttle_reasons.sw_power_cap:
     tagsets:
       - device
+    validator:
+      values: [0, 1]
     support:
       unsupported_architectures:
         - fermi
@@ -157,6 +167,8 @@ metrics:
   clock.throttle_reasons.sw_thermal_slowdown:
     tagsets:
       - device
+    validator:
+      values: [0, 1]
     support:
       unsupported_architectures:
         - fermi
@@ -167,6 +179,8 @@ metrics:
   clock.throttle_reasons.sync_boost:
     tagsets:
       - device
+    validator:
+      values: [0, 1]
     support:
       unsupported_architectures:
         - fermi
@@ -179,6 +193,10 @@ metrics:
       - device
       - process
       - container
+    validator:
+      range:
+        min: 0
+        max: 1000000
     support:
       unsupported_architectures: []
       device_modes:
@@ -198,6 +216,8 @@ metrics:
   device.total:
     tagsets:
       - device
+    validator:
+      values: [1]
     support:
       unsupported_architectures: []
       device_modes:
@@ -207,6 +227,8 @@ metrics:
   device.unhealthy:
     tagsets:
       - device
+    validator:
+      values: [0, 1]
     support:
       unsupported_architectures: []
       device_modes:
@@ -401,6 +423,10 @@ metrics:
       - device
       - process
       - container
+    validator:
+      range:
+        min: 0
+        max: 1000000000000000
     support:
       unsupported_architectures: []
       device_modes:
@@ -474,6 +500,10 @@ metrics:
   nvlink.errors.crc.data:
     tagsets:
       - device
+    validator:
+      range:
+        min: 0
+        max: 1000000000000000
     support:
       unsupported_architectures:
         - fermi
@@ -487,6 +517,10 @@ metrics:
   nvlink.errors.crc.flit:
     tagsets:
       - device
+    validator:
+      range:
+        min: 0
+        max: 1000000000000000
     support:
       unsupported_architectures:
         - fermi
@@ -500,6 +534,10 @@ metrics:
   nvlink.errors.ecc:
     tagsets:
       - device
+    validator:
+      range:
+        min: 0
+        max: 1000000000000000
     support:
       unsupported_architectures:
         - fermi
@@ -513,6 +551,10 @@ metrics:
   nvlink.errors.recovery:
     tagsets:
       - device
+    validator:
+      range:
+        min: 0
+        max: 1000000000000000
     support:
       unsupported_architectures:
         - fermi
@@ -526,6 +568,10 @@ metrics:
   nvlink.errors.replay:
     tagsets:
       - device
+    validator:
+      range:
+        min: 0
+        max: 1000000000000000
     support:
       unsupported_architectures:
         - fermi
@@ -617,6 +663,10 @@ metrics:
   pci.replay_counter:
     tagsets:
       - device
+    validator:
+      range:
+        min: 0
+        max: 1000000000000000
     support:
       unsupported_architectures:
         - fermi
@@ -676,6 +726,10 @@ metrics:
       - device
       - process
       - container
+    validator:
+      range:
+        min: 0
+        max: 1000000
     support:
       unsupported_architectures: []
       device_modes:
@@ -723,6 +777,10 @@ metrics:
       - device
       - process
       - container
+    validator:
+      range:
+        min: 0
+        max: 1000000000000000
     support:
       unsupported_architectures: []
       device_modes:
@@ -734,6 +792,10 @@ metrics:
       - device
       - process
       - container
+    validator:
+      range:
+        min: 0
+        max: 100
     support:
       unsupported_architectures: []
       device_modes:
@@ -743,6 +805,10 @@ metrics:
   remapped_rows.correctable:
     tagsets:
       - device
+    validator:
+      range:
+        min: 0
+        max: 1000000000000000
     support:
       unsupported_architectures:
         - fermi
@@ -758,6 +824,8 @@ metrics:
   remapped_rows.failed:
     tagsets:
       - device
+    validator:
+      values: [0, 1]
     support:
       unsupported_architectures:
         - fermi
@@ -773,6 +841,8 @@ metrics:
   remapped_rows.pending:
     tagsets:
       - device
+    validator:
+      values: [0, 1]
     support:
       unsupported_architectures:
         - fermi
@@ -788,6 +858,10 @@ metrics:
   remapped_rows.uncorrectable:
     tagsets:
       - device
+    validator:
+      range:
+        min: 0
+        max: 1000000000000000
     support:
       unsupported_architectures:
         - fermi
@@ -813,6 +887,10 @@ metrics:
   sm_active:
     tagsets:
       - device
+    validator:
+      range:
+        min: 0
+        max: 100
     support:
       unsupported_architectures: []
       device_modes:
@@ -856,6 +934,10 @@ metrics:
   temperature:
     tagsets:
       - device
+    validator:
+      range:
+        min: 0
+        max: 100
     support:
       unsupported_architectures: []
       device_modes:

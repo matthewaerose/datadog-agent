@@ -26,6 +26,10 @@ def color_tag_failures(count: int) -> str:
     return color_message(str(count), Color.RED) if count > 0 else str(count)
 
 
+def color_metric_value_failures(count: int) -> str:
+    return color_message(str(count), Color.RED) if count > 0 else str(count)
+
+
 def print_summary_table(title: str, results: list[GPUConfigValidationResult]) -> None:
     from tabulate import tabulate
 
@@ -37,6 +41,7 @@ def print_summary_table(title: str, results: list[GPUConfigValidationResult]) ->
             row.device_count,
             color_metric_counts(len(row.missing_metrics), len(row.present_metrics), len(row.unknown_metrics)),
             color_tag_failures(len(row.tag_failures)),
+            color_metric_value_failures(len(row.metric_value_failures)),
         ]
         for row in results
     ]
@@ -52,6 +57,7 @@ def print_summary_table(title: str, results: list[GPUConfigValidationResult]) ->
                 "found devices",
                 "missing/known/unknown metrics",
                 "tag failures",
+                "metric value failures",
             ],
             tablefmt="github",
         )
@@ -77,6 +83,10 @@ def print_result_details(results: list[GPUConfigValidationResult]) -> None:
             print("  tag failure details:")
             for metric_name, tags in result.tag_failures.items():
                 print(f"    - TAG FAIL {metric_name}: missing/non-null [{', '.join(tags)}]")
+        if result.metric_value_failures:
+            print("  metric value failure details:")
+            for metric_name, failures in result.metric_value_failures.items():
+                print(f"    - VALUE FAIL {metric_name}: {'; '.join(failures)}")
 
 
 def render_results(result: ValidationResults) -> None:

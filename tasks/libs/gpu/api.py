@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from datadog_api_client.v2.api.metrics_api import MetricsApi as MetricsApiV2
+from datadog_api_client.v2.model.metrics_aggregator import MetricsAggregator
 from datadog_api_client.v2.model.metrics_scalar_query import MetricsScalarQuery
 
 from tasks.libs.gpu.types import GPUConfig
@@ -38,14 +39,15 @@ def normalize_device_mode(slicing_mode: str | None, virtualization_mode: str | N
     return "physical"
 
 
-def _build_scalar_query(name: str, query: str) -> MetricsScalarQuery:
-    from datadog_api_client.v2.model.metrics_aggregator import MetricsAggregator
+def _build_scalar_query(
+    name: str, query: str, aggregator: MetricsAggregator = MetricsAggregator.AVG
+) -> MetricsScalarQuery:
     from datadog_api_client.v2.model.metrics_data_source import MetricsDataSource
     from datadog_api_client.v2.model.metrics_scalar_query import MetricsScalarQuery
 
     return MetricsScalarQuery(
         name=name,
-        aggregator=MetricsAggregator.AVG,
+        aggregator=aggregator,
         data_source=MetricsDataSource.METRICS,
         query=query,
     )
@@ -86,8 +88,10 @@ def _split_scalar_columns(columns: list[Any]) -> ScalarColumns:
     return ScalarColumns(group=group_columns, number=number_columns)
 
 
-def query_scalar_data(api: MetricsApiV2, query: str, from_ts: int, to_ts: int) -> ScalarColumns:
-    return _run_scalar_queries(api, [_build_scalar_query("q0", query)], from_ts, to_ts)
+def query_scalar_data(
+    api: MetricsApiV2, query: str, from_ts: int, to_ts: int, aggregator: MetricsAggregator = MetricsAggregator.AVG
+) -> ScalarColumns:
+    return _run_scalar_queries(api, [_build_scalar_query("q0", query, aggregator=aggregator)], from_ts, to_ts)
 
 
 def query_device_count(api: MetricsApiV2, gpu_config: GPUConfig, from_ts: int, to_ts: int) -> int:
@@ -180,6 +184,23 @@ def query_expected_metrics_presence_for_gpu_config(
         if missing_tags:
             tag_failures[metric_name] = missing_tags
     return present_metrics, tag_failures
+
+
+def query_metric_values_for_gpu_config(
+    api: MetricsApiV2,
+    metric_name: str,
+    gpu_config_query_filter: str,
+    from_ts: int,
+    to_ts: int,
+) -> list[float]:
+    observed_values: list[float] = []
+    for aggregator in (MetricsAggregator.MIN, MetricsAggregator.MAX):
+        query = f"{aggregator}:{metric_name}{{{gpu_config_query_filter}}}"
+        columns = query_scalar_data(api, query, from_ts, to_ts, aggregator=aggregator)
+        for value in columns.number.get("q0", []):
+            if value is not None:
+                observed_values.append(value)
+    return observed_values
 
 
 def list_observed_gpu_metrics_for_gpu_config(

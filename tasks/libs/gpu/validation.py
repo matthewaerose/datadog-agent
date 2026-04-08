@@ -6,12 +6,14 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar
 
 from invoke.exceptions import Exit
+from pydantic import BaseModel
 
 from tasks.libs.gpu.api import (
     discover_live_gpu_configs,
     list_observed_gpu_metrics_for_gpu_config,
     query_device_count,
     query_expected_metrics_presence_for_gpu_config,
+    query_metric_values_for_gpu_config,
 )
 from tasks.libs.gpu.types import (
     ArchitecturesSpec,
@@ -25,7 +27,6 @@ from tasks.libs.gpu.types import (
 
 if TYPE_CHECKING:
     from datadog_api_client.v2.api.metrics_api import MetricsApi as MetricsApiV2
-    from pydantic import BaseModel
 
 
 SCALAR_QUERY_BATCH_SIZE = 50
@@ -107,9 +108,34 @@ def _build_expected_tags_by_metric(spec_model: Spec, expected_metrics_map: dict[
 def determine_result_state(result: GPUConfigValidationResult) -> GPUConfigValidationState:
     if not result.config.is_known:
         return GPUConfigValidationState.UNKNOWN
-    if result.missing_metrics or result.unknown_metrics or result.tag_failures:
+    if result.missing_metrics or result.unknown_metrics or result.tag_failures or result.metric_value_failures:
         return GPUConfigValidationState.FAIL
     return GPUConfigValidationState.OK
+
+
+def validate_metric_values(
+    metrics_api_v2: MetricsApiV2,
+    expected_metrics_map: dict[str, Metric],
+    query_filter: str,
+    from_ts: int,
+    to_ts: int,
+) -> dict[str, list[str]]:
+    metric_value_failures: dict[str, list[str]] = {}
+
+    for metric_name, metric in expected_metrics_map.items():
+        if metric.validator is None:
+            continue
+
+        observed_values = query_metric_values_for_gpu_config(metrics_api_v2, metric_name, query_filter, from_ts, to_ts)
+        failures: list[str] = []
+        for value in observed_values:
+            failure = metric.validator.validate(value)
+            if failure is not None:
+                failures.append(failure)
+        if failures:
+            metric_value_failures[metric_name] = failures
+
+    return metric_value_failures
 
 
 def validate_gpu_config(
@@ -156,6 +182,7 @@ def validate_gpu_config(
         spec_model.metric_prefix,
     )
     result.unknown_metrics = live_gpu_metrics - set(expected_metrics)
+    result.metric_value_failures = validate_metric_values(metrics_api_v2, expected_metrics_map, query_filter, from_ts, to_ts)
     result.state = determine_result_state(result)
     return result
 

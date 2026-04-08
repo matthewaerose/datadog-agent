@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 DEVICE_MODES = ("physical", "mig", "vgpu")
 
@@ -25,12 +25,48 @@ class Support(BaseModel):
         return value
 
 
+class MetricValidatorRange(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    min: float
+    max: float
+
+    @model_validator(mode="after")
+    def validate_bounds(self) -> MetricValidatorRange:
+        if self.min > self.max:
+            raise ValueError(f"validator range min {self.min} must be less than or equal to max {self.max}")
+        return self
+
+
+class MetricValidator(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    range: MetricValidatorRange | None = None
+    values: list[float] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_shape(self) -> MetricValidator:
+        has_range = self.range is not None
+        has_values = len(self.values) > 0
+        if has_range == has_values:
+            raise ValueError("validator must define exactly one of range or values")
+        return self
+
+    def validate(self, value: float) -> str | None:
+        if self.range is not None:
+            if self.range.min <= value <= self.range.max:
+                return None
+            return f"value {value} is outside inclusive range [{self.range.min}, {self.range.max}]"
+        if value in self.values:
+            return None
+        return f"value {value} is not one of the allowed values {self.values}"
+
+
 class Metric(BaseModel):
     model_config = ConfigDict(extra="forbid")
     type: str | None = None
     tagsets: list[str]
     custom_tags: list[str] = Field(default_factory=list)
     support: Support = Field(default_factory=Support)
+    validator: MetricValidator | None = None
     deprecated: bool = False
 
 
@@ -108,6 +144,7 @@ class GPUConfigValidationResult:
     present_metrics: set[str] = field(default_factory=set)
     unknown_metrics: set[str] = field(default_factory=set)
     tag_failures: dict[str, list[str]] = field(default_factory=dict)
+    metric_value_failures: dict[str, list[str]] = field(default_factory=dict)
 
     @property
     def missing_metrics(self) -> set[str]:
@@ -116,7 +153,7 @@ class GPUConfigValidationResult:
     @property
     def has_failures(self) -> bool:
         return self.device_count > 0 and (
-            len(self.missing_metrics) + len(self.unknown_metrics) + len(self.tag_failures) > 0
+            len(self.missing_metrics) + len(self.unknown_metrics) + len(self.tag_failures) + len(self.metric_value_failures) > 0
         )
 
     def update(self, other: GPUConfigValidationResult) -> None:
@@ -126,6 +163,7 @@ class GPUConfigValidationResult:
         self.present_metrics.update(other.present_metrics)
         self.unknown_metrics.update(other.unknown_metrics)
         self.tag_failures.update(other.tag_failures)
+        self.metric_value_failures.update(other.metric_value_failures)
         self.device_count += other.device_count
 
     @property

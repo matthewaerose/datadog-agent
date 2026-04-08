@@ -887,6 +887,7 @@ func TestMetricsFollowSpec(t *testing.T) {
 							metrics, found := emittedMetrics[name]
 							require.True(t, found, "spec metric is not emitted by check run: %s", name)
 							validateMetricTagsAgainstSpec(t, metricsSpec, name, m, metrics, knownTagValues)
+							validateMetricValuesAgainstSpec(t, name, m, metrics)
 						})
 					}
 				})
@@ -904,7 +905,7 @@ func collectMetricSamples(t *testing.T, archName string, mode gpuspec.DeviceMode
 	collectionSetup := setupMockCheckForMetricCollection(t, archName, mode, archSpec)
 	collectionSetup.runCollection()
 
-	return getEmittedGPUMetricsWithTags(collectionSetup.mockSender), collectionSetup.knownTagValues
+	return getEmittedGPUMetricsWithTags(t, collectionSetup.mockSender), collectionSetup.knownTagValues
 }
 
 type metricCollectionSetup struct {
@@ -1058,11 +1059,14 @@ func setupMockCheckForMetricCollection(t *testing.T, archName string, mode gpusp
 }
 
 type metric struct {
-	name string
-	tags []string
+	name  string
+	value float64
+	tags  []string
 }
 
-func getEmittedGPUMetricsWithTags(mockSender *mocksender.MockSender) map[string][]metric {
+func getEmittedGPUMetricsWithTags(t *testing.T, mockSender *mocksender.MockSender) map[string][]metric {
+	t.Helper()
+
 	metricsByName := make(map[string][]metric)
 
 	for _, call := range mockSender.Mock.Calls {
@@ -1080,6 +1084,9 @@ func getEmittedGPUMetricsWithTags(mockSender *mocksender.MockSender) map[string]
 		}
 
 		specMetricName := strings.TrimPrefix(metricName, "gpu.")
+		require.Greater(t, len(call.Arguments), 1, "metric %s is missing a value argument", metricName)
+		metricValue, ok := call.Arguments.Get(1).(float64)
+		require.True(t, ok, "metric %s has non-float value argument of type %T", metricName, call.Arguments.Get(1))
 		tags := []string{}
 		if len(call.Arguments) > 3 {
 			if callTags, ok := call.Arguments.Get(3).([]string); ok {
@@ -1088,8 +1095,9 @@ func getEmittedGPUMetricsWithTags(mockSender *mocksender.MockSender) map[string]
 		}
 
 		metricsByName[specMetricName] = append(metricsByName[specMetricName], metric{
-			name: specMetricName,
-			tags: tags,
+			name:  specMetricName,
+			value: metricValue,
+			tags:  tags,
 		})
 	}
 
@@ -1132,6 +1140,19 @@ func validateMetricTagsAgainstSpec(t *testing.T, spec *gpuspec.MetricsSpec, metr
 				}
 			}
 		}
+	}
+}
+
+func validateMetricValuesAgainstSpec(t *testing.T, metricName string, metricSpec gpuspec.MetricSpec, emittedMetrics []metric) {
+	t.Helper()
+
+	if metricSpec.Validator == nil {
+		return
+	}
+
+	require.NotEmpty(t, emittedMetrics, "metric %s has no emitted samples to validate values", metricName)
+	for _, emittedMetric := range emittedMetrics {
+		require.NoError(t, metricSpec.Validator.Validate(emittedMetric.value), "metric %s emitted invalid value %v", metricName, emittedMetric.value)
 	}
 }
 
