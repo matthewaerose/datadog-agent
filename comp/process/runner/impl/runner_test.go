@@ -24,7 +24,7 @@ import (
 	workloadmeta "github.com/DataDog/datadog-agent/comp/core/workloadmeta/def"
 	workloadmetafx "github.com/DataDog/datadog-agent/comp/core/workloadmeta/fx"
 	"github.com/DataDog/datadog-agent/comp/process/containercheck/containercheckimpl"
-	"github.com/DataDog/datadog-agent/comp/process/hostinfo/hostinfoimpl"
+	hostinfomock "github.com/DataDog/datadog-agent/comp/process/hostinfo/mock"
 	"github.com/DataDog/datadog-agent/comp/process/processcheck/processcheckimpl"
 	runner "github.com/DataDog/datadog-agent/comp/process/runner/def"
 	submittermock "github.com/DataDog/datadog-agent/comp/process/submitter/mock"
@@ -115,7 +115,7 @@ func createDeps(t *testing.T, confOverrides map[string]interface{}, options ...f
 	return fxutil.Test[Deps](t, fx.Options(
 		fxutil.ProvideComponentConstructor(NewComponent),
 		submittermock.MockModule(),
-		hostinfoimpl.MockModule(),
+		hostinfomock.MockModule(),
 
 		// Checks
 		processcheckimpl.MockModule(),
