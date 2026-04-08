@@ -466,6 +466,32 @@ metrics:
         mig: false
         physical: true
         vgpu: true
+  nvlink.ber.effective:
+    tagsets:
+      - device
+    support:
+      unsupported_architectures:
+        - fermi
+        - kepler
+        - maxwell
+        - ada
+      device_modes:
+        mig: false
+        physical: true
+        vgpu: false
+  nvlink.ber.symbol:
+    tagsets:
+      - device
+    support:
+      unsupported_architectures:
+        - fermi
+        - kepler
+        - maxwell
+        - ada
+      device_modes:
+        mig: false
+        physical: true
+        vgpu: false
   nvlink.errors.crc.data:
     tagsets:
       - device
@@ -492,7 +518,59 @@ metrics:
         mig: false
         physical: true
         vgpu: false
+  nvlink.errors.buffer.overrun:
+    tagsets:
+      - device
+    support:
+      unsupported_architectures:
+        - fermi
+        - kepler
+        - maxwell
+        - ada
+      device_modes:
+        mig: false
+        physical: true
+        vgpu: false
   nvlink.errors.ecc:
+    tagsets:
+      - device
+    support:
+      unsupported_architectures:
+        - fermi
+        - kepler
+        - maxwell
+        - ada
+      device_modes:
+        mig: false
+        physical: true
+        vgpu: false
+  nvlink.errors.effective:
+    tagsets:
+      - device
+    support:
+      unsupported_architectures:
+        - fermi
+        - kepler
+        - maxwell
+        - ada
+      device_modes:
+        mig: false
+        physical: true
+        vgpu: false
+  nvlink.errors.local.link.integrity:
+    tagsets:
+      - device
+    support:
+      unsupported_architectures:
+        - fermi
+        - kepler
+        - maxwell
+        - ada
+      device_modes:
+        mig: false
+        physical: true
+        vgpu: false
+  nvlink.errors.malformed.packet:
     tagsets:
       - device
     support:
@@ -531,6 +609,58 @@ metrics:
         mig: false
         physical: true
         vgpu: false
+  nvlink.errors.rx:
+    tagsets:
+      - device
+    support:
+      unsupported_architectures:
+        - fermi
+        - kepler
+        - maxwell
+        - ada
+      device_modes:
+        mig: false
+        physical: true
+        vgpu: false
+  nvlink.errors.rx.general:
+    tagsets:
+      - device
+    support:
+      unsupported_architectures:
+        - fermi
+        - kepler
+        - maxwell
+        - ada
+      device_modes:
+        mig: false
+        physical: true
+        vgpu: false
+  nvlink.errors.rx.remote:
+    tagsets:
+      - device
+    support:
+      unsupported_architectures:
+        - fermi
+        - kepler
+        - maxwell
+        - ada
+      device_modes:
+        mig: false
+        physical: true
+        vgpu: false
+  nvlink.errors.symbol:
+    tagsets:
+      - device
+    support:
+      unsupported_architectures:
+        - fermi
+        - kepler
+        - maxwell
+        - ada
+      device_modes:
+        mig: false
+        physical: true
+        vgpu: false
   nvlink.nvswitch_connected:
     tagsets:
       - device
@@ -545,6 +675,45 @@ metrics:
         physical: true
         vgpu: false
   nvlink.speed:
+    tagsets:
+      - device
+    support:
+      unsupported_architectures:
+        - fermi
+        - kepler
+        - maxwell
+        - ada
+      device_modes:
+        mig: false
+        physical: true
+        vgpu: false
+  nvlink.recovery.events.failed:
+    tagsets:
+      - device
+    support:
+      unsupported_architectures:
+        - fermi
+        - kepler
+        - maxwell
+        - ada
+      device_modes:
+        mig: false
+        physical: true
+        vgpu: false
+  nvlink.recovery.events.successful:
+    tagsets:
+      - device
+    support:
+      unsupported_architectures:
+        - fermi
+        - kepler
+        - maxwell
+        - ada
+      device_modes:
+        mig: false
+        physical: true
+        vgpu: false
+  nvlink.rx.packets:
     tagsets:
       - device
     support:
@@ -604,6 +773,83 @@ metrics:
         - fermi
         - kepler
         - maxwell
+        - ada
+      device_modes:
+        mig: false
+        physical: true
+        vgpu: false
+  nvlink.tx.discards:
+    tagsets:
+      - device
+    support:
+      unsupported_architectures:
+        - fermi
+        - kepler
+        - maxwell
+        - ada
+      device_modes:
+        mig: false
+        physical: true
+        vgpu: false
+  nvlink.tx.packets:
+    tagsets:
+      - device
+    support:
+      unsupported_architectures:
+        - fermi
+        - kepler
+        - maxwell
+        - ada
+      device_modes:
+        mig: false
+        physical: true
+        vgpu: false
+  c2c.errors.interrupt:
+    tagsets:
+      - device
+    support:
+      unsupported_architectures:
+        - fermi
+        - kepler
+        - maxwell
+        - pascal
+        - volta
+        - turing
+        - ampere
+        - ada
+      device_modes:
+        mig: false
+        physical: true
+        vgpu: false
+  c2c.errors.replay:
+    tagsets:
+      - device
+    support:
+      unsupported_architectures:
+        - fermi
+        - kepler
+        - maxwell
+        - pascal
+        - volta
+        - turing
+        - ampere
+        - ada
+      device_modes:
+        mig: false
+        physical: true
+        vgpu: false
+  c2c.errors.replay.b2b:
+    tagsets:
+      - device
+    support:
+      unsupported_architectures:
+        - fermi
+        - kepler
+        - maxwell
+        - pascal
+        - volta
+        - turing
+        - ampere
         - ada
       device_modes:
         mig: false
