@@ -1,0 +1,16 @@
+{
+  "name": "datadog-agent-local",
+  "metadata": {
+    "description": "Local plugins for the datadog-agent repository"
+  },
+  "owner": {
+    "name": "Datadog Agent DevX",
+    "email": "team-agent-devx-loops@datadoghq.com"
+  },
+  "plugins": [
+    {
+      "name": "datadog-agent-gopls",
+      "source": "./datadog-agent-gopls"
+    }
+  ]
+}

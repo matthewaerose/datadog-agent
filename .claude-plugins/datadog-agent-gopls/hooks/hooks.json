@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "dda inv claude.set-buildtags 2>&1",
+            "timeout": 30000
+          }
+        ]
+      }
+    ]
+  }
+}
