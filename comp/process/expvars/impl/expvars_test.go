@@ -3,7 +3,9 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package expvarsimpl
+//go:build test
+
+package expvarsimpl_test
 
 import (
 	"net/http"
@@ -18,8 +20,9 @@ import (
 	logmock "github.com/DataDog/datadog-agent/comp/core/log/mock"
 	"github.com/DataDog/datadog-agent/comp/core/sysprobeconfig/sysprobeconfigimpl"
 	"github.com/DataDog/datadog-agent/comp/core/telemetry/telemetryimpl"
-	"github.com/DataDog/datadog-agent/comp/process/expvars"
-	"github.com/DataDog/datadog-agent/comp/process/hostinfo/hostinfoimpl"
+	expvars "github.com/DataDog/datadog-agent/comp/process/expvars/def"
+	expvarsfx "github.com/DataDog/datadog-agent/comp/process/expvars/fx"
+	hostinfomock "github.com/DataDog/datadog-agent/comp/process/hostinfo/mock"
 	"github.com/DataDog/datadog-agent/pkg/util/flavor"
 	"github.com/DataDog/datadog-agent/pkg/util/fxutil"
 )
@@ -38,8 +41,8 @@ func TestExpvarServer(t *testing.T) {
 		}),
 		telemetryimpl.MockModule(),
 		sysprobeconfigimpl.MockModule(),
-		hostinfoimpl.MockModule(),
-		Module(),
+		hostinfomock.MockModule(),
+		expvarsfx.Module(),
 	))
 
 	assert.Eventually(t, func() bool {
@@ -66,8 +69,8 @@ func TestTelemetry(t *testing.T) {
 				"process_config.expvar_port": 43423,
 			})
 		}),
-		Module(),
-		hostinfoimpl.MockModule(),
+		expvarsfx.Module(),
+		hostinfomock.MockModule(),
 		telemetryimpl.MockModule(),
 		sysprobeconfigimpl.MockModule(),
 	))
