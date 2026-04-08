@@ -66,6 +66,7 @@ func fetchColumnOidsWithBatching(sess session.Session, oids []string, batchSizeO
 func fetchColumnOids(sess session.Session, oids []string, bulkMaxRepetitions uint32, fetchStrategy columnFetchStrategy) (valuestore.ColumnResultValuesType, error) {
 	returnValues := make(valuestore.ColumnResultValuesType, len(oids))
 	alreadyProcessedOids := make(map[string]bool)
+	retriedOids := make(map[string]bool)
 	curOids := make(map[string]string, len(oids))
 	for _, oid := range oids {
 		curOids[oid] = oid
@@ -99,6 +100,14 @@ func fetchColumnOids(sess session.Session, oids []string, bulkMaxRepetitions uin
 		newValues, nextOids := valuestore.ResultToColumnValues(columnOids, results)
 		updateColumnResultValues(returnValues, newValues)
 		curOids = nextOids
+
+		// Allow unvisited OIDs to be retried once.
+		for k, v := range curOids {
+			if k == v && !retriedOids[v] {
+				retriedOids[v] = true
+				delete(alreadyProcessedOids, v)
+			}
+		}
 	}
 	return returnValues, nil
 }

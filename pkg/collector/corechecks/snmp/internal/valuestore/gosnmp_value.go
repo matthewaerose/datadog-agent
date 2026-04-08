@@ -58,6 +58,7 @@ func ResultToColumnValues(columnOids []string, snmpPacket *gosnmp.SnmpPacket) (C
 	returnValues := make(ColumnResultValuesType, len(columnOids))
 	nextOidsMap := make(map[string]string, len(columnOids))
 	maxRowsPerCol := int(math.Ceil(float64(len(snmpPacket.Variables)) / float64(len(columnOids))))
+	visitedOids := make(map[string]bool, len(columnOids))
 	for i, pduVariable := range snmpPacket.Variables {
 		if shouldSkip(pduVariable.Type) {
 			continue
@@ -71,6 +72,7 @@ func ResultToColumnValues(columnOids []string, snmpPacket *gosnmp.SnmpPacket) (C
 		// the snmpPacket might contain multiple row values for a single column
 		// and the columnOid can be derived from the index of the PDU variable.
 		columnOid := columnOids[i%len(columnOids)]
+		visitedOids[columnOid] = true
 		if _, ok := returnValues[columnOid]; !ok {
 			returnValues[columnOid] = make(map[string]ResultValue, maxRowsPerCol)
 		}
@@ -84,6 +86,13 @@ func ResultToColumnValues(columnOids []string, snmpPacket *gosnmp.SnmpPacket) (C
 			// If oid is not prefixed by columnOid, it means it's not part of the column
 			// and we can stop requesting the next row of this column. This is expected.
 			delete(nextOidsMap, columnOid)
+		}
+	}
+	// Carry forward any column OIDs that were never visited due to response
+	// truncation, so the caller can retry them in a subsequent request.
+	for _, columnOid := range columnOids {
+		if !visitedOids[columnOid] {
+			nextOidsMap[columnOid] = columnOid
 		}
 	}
 	return returnValues, nextOidsMap

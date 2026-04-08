@@ -410,6 +410,91 @@ func Test_resultToColumnValues(t *testing.T) {
 	}
 }
 
+// Test_resultToColumnValues_truncatedResponse proves that when a GetBulk
+// response is truncated (fewer varbinds than requested OIDs), OIDs past the
+// truncation boundary are silently dropped — they appear in neither the
+// returned values nor the nextOidsMap, so they are never retried.
+// This is the bug described in NDMC-285.
+func Test_resultToColumnValues_truncatedResponse(t *testing.T) {
+	// Simulate requesting 5 column OIDs but the device truncates the response
+	// to only 2 varbinds (e.g. due to UDP PDU size limits after wrap-around).
+	// OIDs are sorted, as they would be in fetchColumnOids.
+	columnOids := []string{
+		"1.0.8802.1.1.2.1.3.7", // LLDP (unsupported — causes wrap-around)
+		"1.0.8802.1.1.2.1.4.1", // LLDP (unsupported — causes wrap-around)
+		"1.3.6.1.2.1.2.2.1.2",  // ifDescr (supported)
+		"1.3.6.1.2.1.2.2.1.14", // ifInErrors (supported)
+		"1.3.6.1.2.1.15.3.1.1", // BGP peer table (supported)
+	}
+
+	// The device wraps around unsupported LLDP OIDs to sysDescr, producing
+	// large values that fill the UDP PDU. Only 2 varbinds fit before truncation.
+	truncatedPacket := &gosnmp.SnmpPacket{
+		Variables: []gosnmp.SnmpPDU{
+			{
+				// Wrap-around: LLDP OID not supported, device returns sysDescr
+				Name:  "1.3.6.1.2.1.1.1.0",
+				Type:  gosnmp.OctetString,
+				Value: []byte("Cisco IOS Software, long description that fills PDU..."),
+			},
+			{
+				// Wrap-around: second LLDP OID also wraps to sysDescr
+				Name:  "1.3.6.1.2.1.1.1.0",
+				Type:  gosnmp.OctetString,
+				Value: []byte("Cisco IOS Software, long description that fills PDU..."),
+			},
+			// Truncated here — ifDescr, ifInErrors, and BGP OIDs get NO varbinds
+		},
+	}
+
+	_, nextOids := ResultToColumnValues(columnOids, truncatedPacket)
+
+	// LLDP wrap-around responses don't match column prefix, so they should not be in nextOids
+	assert.NotContains(t, nextOids, "1.0.8802.1.1.2.1.3.7", "LLDP wrap-around should be removed from nextOids")
+	assert.NotContains(t, nextOids, "1.0.8802.1.1.2.1.4.1", "LLDP wrap-around should be removed from nextOids")
+
+	// These supported OIDs received no varbinds due to PDU truncation.
+	// They MUST be carried forward in nextOids so they are retried.
+	assert.Contains(t, nextOids, "1.3.6.1.2.1.2.2.1.2", "ifDescr should be retried after truncation")
+	assert.Contains(t, nextOids, "1.3.6.1.2.1.2.2.1.14", "ifInErrors should be retried after truncation")
+	assert.Contains(t, nextOids, "1.3.6.1.2.1.15.3.1.1", "BGP should be retried after truncation")
+}
+
+func Test_resultToColumnValues_emptyResponse(t *testing.T) {
+	columnOids := []string{"1.3.6.1.2.1.2.2.1.2", "1.3.6.1.2.1.2.2.1.14", "1.3.6.1.2.1.15.3.1.1"}
+	emptyPacket := &gosnmp.SnmpPacket{Variables: []gosnmp.SnmpPDU{}}
+
+	_, nextOids := ResultToColumnValues(columnOids, emptyPacket)
+
+	// All OIDs should be carried forward for retry since none were visited
+	assert.Equal(t, map[string]string{
+		"1.3.6.1.2.1.2.2.1.2":  "1.3.6.1.2.1.2.2.1.2",
+		"1.3.6.1.2.1.2.2.1.14": "1.3.6.1.2.1.2.2.1.14",
+		"1.3.6.1.2.1.15.3.1.1": "1.3.6.1.2.1.15.3.1.1",
+	}, nextOids)
+}
+
+func Test_resultToColumnValues_allSkippableResponse(t *testing.T) {
+	columnOids := []string{"1.3.6.1.2.1.2.2.1.2", "1.3.6.1.2.1.2.2.1.14", "1.3.6.1.2.1.15.3.1.1"}
+	skippablePacket := &gosnmp.SnmpPacket{
+		Variables: []gosnmp.SnmpPDU{
+			{Name: "1.3.6.1.2.1.2.2.1.2.1", Type: gosnmp.EndOfMibView},
+			{Name: "1.3.6.1.2.1.2.2.1.14.1", Type: gosnmp.EndOfMibView},
+			{Name: "1.3.6.1.2.1.15.3.1.1.1", Type: gosnmp.EndOfMibView},
+		},
+	}
+
+	_, nextOids := ResultToColumnValues(columnOids, skippablePacket)
+
+	// All varbinds were skipped (EndOfMibView), so no OIDs were visited.
+	// They should all be carried forward for retry.
+	assert.Equal(t, map[string]string{
+		"1.3.6.1.2.1.2.2.1.2":  "1.3.6.1.2.1.2.2.1.2",
+		"1.3.6.1.2.1.2.2.1.14": "1.3.6.1.2.1.2.2.1.14",
+		"1.3.6.1.2.1.15.3.1.1": "1.3.6.1.2.1.15.3.1.1",
+	}, nextOids)
+}
+
 func Test_resultToScalarValues(t *testing.T) {
 	tests := []struct {
 		name           string
