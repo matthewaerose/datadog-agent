@@ -4,7 +4,7 @@
 // Copyright 2016-present Datadog, Inc.
 
 // Package infra implements utilities to interact with a Pulumi infrastructure
-package infra
+package ssh
 
 import (
 	"fmt"

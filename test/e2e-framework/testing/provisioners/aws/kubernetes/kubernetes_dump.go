@@ -25,7 +25,8 @@ import (
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 
 	"github.com/DataDog/datadog-agent/pkg/util/pointer"
-	"github.com/DataDog/datadog-agent/test/e2e-framework/testing/utils/infra"
+	k8sutils "github.com/DataDog/datadog-agent/test/e2e-framework/testing/utils/k8s"
+	sshutils "github.com/DataDog/datadog-agent/test/e2e-framework/testing/utils/ssh"
 )
 
 func DumpEKSClusterState(ctx context.Context, name string) (ret string, err error) {
@@ -80,7 +81,7 @@ func DumpEKSClusterState(ctx context.Context, name string) (ret string, err erro
 	}
 	kubeconfig.CurrentContext = name
 
-	err = infra.DumpK8sClusterState(ctx, kubeconfig, &out)
+	err = k8sutils.DumpK8sClusterState(ctx, kubeconfig, &out)
 	if err != nil {
 		return ret, fmt.Errorf("failed to dump cluster state: %v", err)
 	}
@@ -134,7 +135,7 @@ func DumpKindClusterState(ctx context.Context, name string) (ret string, err err
 		return ret, errors.New("failed to get private IP of instance")
 	}
 
-	sshClient, err := infra.SshConnectToInstance(*instanceIP, "22", "ubuntu")
+	sshClient, err := sshutils.SshConnectToInstance(*instanceIP, "22", "ubuntu")
 	if err != nil {
 		return ret, fmt.Errorf("failed to dial SSH server %s: %v", *instanceIP, err)
 	}
@@ -205,7 +206,7 @@ func DumpKindClusterState(ctx context.Context, name string) (ret string, err err
 		cluster.InsecureSkipTLSVerify = true
 	}
 
-	err = infra.DumpK8sClusterState(ctx, kubeconfig, &out)
+	err = k8sutils.DumpK8sClusterState(ctx, kubeconfig, &out)
 	if err != nil {
 		return ret, fmt.Errorf("failed to dump cluster state: %v", err)
 	}
