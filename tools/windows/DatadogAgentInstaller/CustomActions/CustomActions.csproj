@@ -120,7 +120,7 @@
       <Version>4.5.5</Version>
     </PackageReference>
     <PackageReference Include="System.Threading.Tasks.Extensions">
-      <Version>4.5.4</Version>
+      <Version>4.6.3</Version>
     </PackageReference>
     <PackageReference Include="YamlDotNet">
       <Version>13.0.1</Version>
