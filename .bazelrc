@@ -69,6 +69,17 @@ common:ci --noexperimental_convenience_symlinks # not CI-suitable: "These symlin
 # Project/Language configs --------------------------------------------------------------------------------------
 import %workspace%/bazel/configs/rust.bazelrc
 
+# Go test config -------------------------------------------------------------------------------------------------------
+# Pre-set the "test" Go build tag for all `bazel test` invocations. Every go_test rule has
+# gotags = ["test"] set by the go_build_tags Gazelle extension; that attribute triggers a
+# go_transition whose sole effect is adding "test" to //go/config:tags. With the incoming
+# configuration already containing ["test"], the transition output equals the input, so Bazel
+# produces no new configuration and omits the ST-<hash> suffix from output paths. Without this
+# flag, the suffix adds ~16 characters to test binary paths. Combined with the long test-binary
+# runfile paths on Windows, this pushes paths over the 260-char MAX_PATH limit, causing
+# bzltestutil.Wrap() to fail with ERROR_INVALID_PARAMETER when re-execing the test binary.
+test --@rules_go//go/config:tags=test
+
 # Global release config ------------------------------------------------------------------------------------------------
 # This should aggregate all the release configs for all the languages with enabled optimizations,
 # stripping, etc.  It does not strictly mean that this build is the one to be released as a product.
